@@ -1,14 +1,17 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
 import Svg, { Polygon, Circle, Text as SvgText } from 'react-native-svg';
-import { Board, Square } from '../types/game';
+import { Board, Square, PieceType } from '../types/game';
 
 interface Props {
   board: Board;
   onSquarePress: (x: number, y: number) => void;
+  selectedPieceType?: PieceType;
 }
 
-export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress }) => {
+export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selectedPieceType }) => {
   const screenWidth = Dimensions.get('window').width;
   const boardSize = Math.min(screenWidth - 32, 400);
   const squareSize = boardSize / (board.size * 1.2);
@@ -34,6 +37,10 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress }) => {
     
     const points = `${topLeft.x},${topLeft.y} ${topRight.x},${topRight.y} ${bottomRight.x},${bottomRight.y} ${bottomLeft.x},${bottomLeft.y}`;
     
+    const canPlacePiece = selectedPieceType && square.pieces.length === 0;
+    const squareColor = canPlacePiece ? "#a0522d" : "#8b4513";
+    const strokeColor = canPlacePiece ? "#deb887" : "#654321";
+    
     return (
       <TouchableOpacity
         key={`square-${square.x}-${square.y}`}
@@ -43,9 +50,9 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress }) => {
         <Svg>
           <Polygon
             points={points}
-            fill="#8b4513"
-            stroke="#654321"
-            strokeWidth="1"
+            fill={squareColor}
+            stroke={strokeColor}
+            strokeWidth={canPlacePiece ? "2" : "1"}
           />
           {square.pieces.map((piece, stackIndex) => 
             renderPiece(piece, isoX, isoY - (stackIndex * 6), stackIndex)

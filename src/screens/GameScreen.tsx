@@ -10,7 +10,7 @@ import {
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
-import { GameState } from '../types/game';
+import { GameState, PieceType } from '../types/game';
 import { gotakAPI } from '../services/api';
 import { IsometricBoard } from '../components/IsometricBoard';
 import { PieceInventory } from '../components/PieceInventory';
@@ -27,6 +27,7 @@ interface Props {
 export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedPieceType, setSelectedPieceType] = useState<PieceType | null>(null);
 
   useEffect(() => {
     initializeGame();
@@ -64,6 +65,29 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       });
     } catch (error) {
       console.error('Share error:', error);
+    }
+  };
+
+  const handlePlacePiece = async (x: number, y: number, pieceType: PieceType) => {
+    if (!gameState) return;
+
+    try {
+      const move = {
+        to: { x, y, stackIndex: 0 },
+        piece: {
+          id: `temp-${Date.now()}`,
+          type: pieceType,
+          color: 'white' as const,
+        },
+        moveType: 'place' as const,
+      };
+
+      const updatedGame = await gotakAPI.makeMove(gameState.id, move);
+      setGameState(updatedGame);
+      setSelectedPieceType(null);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to place piece');
+      console.error('Place piece error:', error);
     }
   };
 
@@ -111,8 +135,11 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       <View style={styles.gameArea}>
         <IsometricBoard
           board={gameState.board}
+          selectedPieceType={selectedPieceType}
           onSquarePress={(x, y) => {
-            console.log(`Square pressed: ${x}, ${y}`);
+            if (selectedPieceType) {
+              handlePlacePiece(x, y, selectedPieceType);
+            }
           }}
         />
         
@@ -120,9 +147,23 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           pieces={gameState.players.white.pieces}
           color="white"
           onPieceSelect={(pieceType) => {
-            console.log(`Piece selected: ${pieceType}`);
+            setSelectedPieceType(selectedPieceType === pieceType ? null : pieceType);
           }}
         />
+        
+        {selectedPieceType && (
+          <View style={styles.selectedPieceIndicator}>
+            <Text style={styles.selectedPieceText}>
+              Selected: {selectedPieceType} piece
+            </Text>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setSelectedPieceType(null)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -201,6 +242,31 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  selectedPieceIndicator: {
+    backgroundColor: '#34495e',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    marginTop: 16,
+    borderRadius: 8,
+  },
+  selectedPieceText: {
+    color: '#ecf0f1',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelButton: {
+    backgroundColor: '#e74c3c',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
   },
 });
