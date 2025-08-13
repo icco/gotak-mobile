@@ -29,10 +29,6 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [selectedPieceType, setSelectedPieceType] = useState<PieceType | undefined>(undefined);
 
-  useEffect(() => {
-    initializeGame();
-  }, [initializeGame]);
-
   const initializeGame = useCallback(async () => {
     try {
       setLoading(true);
@@ -53,6 +49,10 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       setLoading(false);
     }
   }, [route.params?.gameId]);
+
+  useEffect(() => {
+    initializeGame();
+  }, [initializeGame]);
 
   const handleShareGame = async () => {
     if (!gameState) return;
