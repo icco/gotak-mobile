@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import Svg, { Polygon, Circle } from 'react-native-svg';
-import { Board, Square, PieceType } from '../types/game';
+import { Board, Square, Piece, PieceType } from '../types/game';
 
 interface Props {
   board: Board;
