@@ -1,8 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
-import Animated from 'react-native-reanimated';
-import Svg, { Polygon, Circle, Text as SvgText } from 'react-native-svg';
+import Svg, { Polygon, Circle } from 'react-native-svg';
 import { Board, Square, PieceType } from '../types/game';
 
 interface Props {
