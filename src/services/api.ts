@@ -35,7 +35,7 @@ class GotakAPI {
     return response.data;
   }
 
-  async getGameLink(gameId: string): string {
+  async getGameLink(gameId: string): Promise<string> {
     return `${API_BASE_URL}/games/${gameId}`;
   }
 }

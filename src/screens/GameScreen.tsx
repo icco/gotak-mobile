@@ -27,7 +27,7 @@ interface Props {
 export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedPieceType, setSelectedPieceType] = useState<PieceType | null>(null);
+  const [selectedPieceType, setSelectedPieceType] = useState<PieceType | undefined>(undefined);
 
   useEffect(() => {
     initializeGame();
@@ -84,7 +84,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
 
       const updatedGame = await gotakAPI.makeMove(gameState.id, move);
       setGameState(updatedGame);
-      setSelectedPieceType(null);
+      setSelectedPieceType(undefined);
     } catch (error) {
       Alert.alert('Error', 'Failed to place piece');
       console.error('Place piece error:', error);
@@ -147,7 +147,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           pieces={gameState.players.white.pieces}
           color="white"
           onPieceSelect={(pieceType) => {
-            setSelectedPieceType(selectedPieceType === pieceType ? null : pieceType);
+            setSelectedPieceType(selectedPieceType === pieceType ? undefined : pieceType);
           }}
         />
         
@@ -158,7 +158,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
             </Text>
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={() => setSelectedPieceType(null)}
+              onPress={() => setSelectedPieceType(undefined)}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
