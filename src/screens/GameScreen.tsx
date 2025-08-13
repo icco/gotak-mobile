@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   Alert,
   TouchableOpacity,
+  Share,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
@@ -14,7 +15,6 @@ import { GameState, PieceType } from '../types/game';
 import { gotakAPI } from '../services/api';
 import { IsometricBoard } from '../components/IsometricBoard';
 import { PieceInventory } from '../components/PieceInventory';
-import { Share } from 'react-native';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
@@ -31,9 +31,9 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
 
   useEffect(() => {
     initializeGame();
-  }, []);
+  }, [initializeGame]);
 
-  const initializeGame = async () => {
+  const initializeGame = useCallback(async () => {
     try {
       setLoading(true);
       const gameId = route.params?.gameId;
@@ -52,7 +52,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [route.params?.gameId]);
 
   const handleShareGame = async () => {
     if (!gameState) return;
