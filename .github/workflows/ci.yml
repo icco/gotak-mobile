@@ -27,7 +27,7 @@ jobs:
       run: npx tsc --noEmit
       
     - name: Run linter
-      run: echo "Linter step skipped - ESLint not yet configured"
+      run: npm run lint
       
     - name: Run tests
       run: npm test || echo "No tests configured yet"
