@@ -75,7 +75,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       const move = {
         to: { x, y, stackIndex: 0 },
         piece: {
-          id: `temp-${Date.now()}`,
+          id: `temp-${crypto.randomUUID()}`,
           type: pieceType,
           color: 'white' as const,
         },
