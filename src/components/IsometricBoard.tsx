@@ -60,7 +60,7 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
     );
   };
 
-  const renderPiece = (piece: any, x: number, y: number, stackIndex: number) => {
+  const renderPiece = (piece: Piece, x: number, y: number, stackIndex: number) => {
     const pieceSize = squareSize * 0.3;
     const color = piece.color === 'white' ? '#f8f9fa' : '#2c3e50';
     const strokeColor = piece.color === 'white' ? '#dee2e6' : '#1a252f';
