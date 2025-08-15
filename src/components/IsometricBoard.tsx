@@ -11,10 +11,11 @@ interface Props {
 export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selectedPieceType }) => {
   const screenWidth = Dimensions.get('window').width;
   const boardSize = Math.min(screenWidth - 32, 400);
-  const squareSize = boardSize / board.size; // Simple grid layout
 
-  // Debug logging
-  console.log('IsometricBoard render:', { boardSize, squareSize, boardSizeValue: board.size, squares: Object.keys(board.squares) });
+  // Isometric projection constants
+  const tileWidth = boardSize / (board.size + 1);
+  const tileHeight = tileWidth * 0.6; // Isometric height ratio
+  const pieceHeight = tileHeight * 0.25; // Height of each piece in the stack
 
   // Convert board.squares object to array of squares with coordinates
   const getSquaresArray = () => {
@@ -33,30 +34,41 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
     return squares;
   };
 
-  const renderSquare = (x: number, y: number, stones: Stone[]) => {
-    // Use simple grid coordinates for now
-    const squareX = x * squareSize;
-    const squareY = y * squareSize;
-    const size = squareSize * 0.9;
+  // Convert grid coordinates to isometric coordinates
+  const gridToIsometric = (x: number, y: number) => {
+    // Center the board
+    const centerX = boardSize / 2;
+    const centerY = boardSize * 0.4;
 
+    // Isometric projection
+    const isoX = centerX + (x - y) * tileWidth * 0.5;
+    const isoY = centerY + (x + y) * tileHeight * 0.5;
+    return { x: isoX, y: isoY };
+  };
+
+  const renderSquare = (x: number, y: number, stones: Stone[]) => {
+    const isoPos = gridToIsometric(x, y);
     const canPlacePiece = selectedPieceType && stones.length === 0;
-    const squareColor = canPlacePiece ? "#d2691e" : "#8b4513";
-    const strokeColor = canPlacePiece ? "#ffd700" : "#654321";
 
     return (
       <View
         key={`square-${x}-${y}`}
         style={[
-          styles.square,
+          styles.isometricSquare,
           {
             position: 'absolute',
-            left: squareX,
-            top: squareY,
-            width: size,
-            height: size,
-            backgroundColor: squareColor,
-            borderWidth: canPlacePiece ? 3 : 1,
-            borderColor: strokeColor,
+            left: isoPos.x - tileWidth / 2,
+            top: isoPos.y - tileHeight / 2,
+            width: tileWidth,
+            height: tileHeight,
+            backgroundColor: canPlacePiece ? 'rgba(255, 215, 0, 0.4)' : 'rgba(210, 180, 140, 0.4)',
+            borderWidth: canPlacePiece ? 2 : 1,
+            borderColor: canPlacePiece ? '#ffd700' : '#8b4513',
+            shadowColor: '#000',
+            shadowOffset: { width: 2, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 3,
+            elevation: 3,
           }
         ]}
       >
@@ -66,19 +78,15 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
             console.log('Square pressed:', x, y);
             onSquarePress(x, y);
           }}
-        >
-          {/* Render stones on top of the square */}
-          {stones.map((stone, stackIndex) => {
-            console.log(`Rendering stone ${stackIndex} in square ${x},${y}:`, stone);
-            return renderStone(stone, size / 2, size / 2 - (stackIndex * 6), stackIndex);
-          })}
-        </TouchableOpacity>
+        />
       </View>
     );
   };
 
   const renderStone = (stone: Stone, x: number, y: number, stackIndex: number) => {
-    const pieceSize = squareSize * 0.2;
+    const isoPos = gridToIsometric(x, y);
+    const stackHeight = stackIndex * pieceHeight;
+    const pieceSize = tileWidth * 0.35;
     const color = stone.player === 1 ? '#f8f9fa' : '#2c3e50'; // 1 = white, 2 = black
     const strokeColor = stone.player === 1 ? '#dee2e6' : '#1a252f';
 
@@ -87,8 +95,8 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
 
     if (stoneType === 'wall' || stoneType === 'standing') {
       // Standing piece - render as a tall rectangle
-      const height = pieceSize * 1.5;
-      const width = pieceSize * 0.6;
+      const height = pieceHeight * 1.5;
+      const width = pieceSize * 0.7;
 
       return (
         <View
@@ -102,9 +110,14 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
               borderWidth: 1,
               borderColor: strokeColor,
               position: 'absolute',
-              left: x - width / 2,
-              top: y - height / 2,
-              zIndex: 10, // Ensure stones are on top
+              left: isoPos.x - width / 2,
+              top: isoPos.y - tileHeight / 2 - stackHeight - height,
+              zIndex: 100 + stackIndex,
+              shadowColor: '#000',
+              shadowOffset: { width: 1, height: 2 },
+              shadowOpacity: 0.4,
+              shadowRadius: 2,
+              elevation: 5,
             }
           ]}
         />
@@ -126,9 +139,14 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
               borderWidth: 3,
               borderColor: strokeColor,
               position: 'absolute',
-              left: x - radius,
-              top: y - radius,
-              zIndex: 10,
+              left: isoPos.x - radius,
+              top: isoPos.y - tileHeight / 2 - stackHeight - radius * 2,
+              zIndex: 100 + stackIndex,
+              shadowColor: '#000',
+              shadowOffset: { width: 1, height: 2 },
+              shadowOpacity: 0.4,
+              shadowRadius: 3,
+              elevation: 6,
             }
           ]}
         />
@@ -150,9 +168,14 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
               borderWidth: 1,
               borderColor: strokeColor,
               position: 'absolute',
-              left: x - radius,
-              top: y - radius,
-              zIndex: 10,
+              left: isoPos.x - radius,
+              top: isoPos.y - tileHeight / 2 - stackHeight - radius * 2,
+              zIndex: 100 + stackIndex,
+              shadowColor: '#000',
+              shadowOffset: { width: 1, height: 1 },
+              shadowOpacity: 0.3,
+              shadowRadius: 2,
+              elevation: 4,
             }
           ]}
         />
@@ -160,56 +183,93 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
     }
   };
 
+  const renderGridLines = () => {
+    const lines = [];
+
+    // Vertical lines
+    for (let x = 0; x <= board.size; x++) {
+      const startPos = gridToIsometric(x, 0);
+      const endPos = gridToIsometric(x, board.size);
+
+      lines.push(
+        <View
+          key={`vline-${x}`}
+          style={{
+            position: 'absolute',
+            left: startPos.x,
+            top: startPos.y,
+            width: 1,
+            height: Math.abs(endPos.y - startPos.y),
+            backgroundColor: 'rgba(139, 69, 19, 0.6)',
+            zIndex: 50,
+          }}
+        />
+      );
+    }
+
+    // Horizontal lines
+    for (let y = 0; y <= board.size; y++) {
+      const startPos = gridToIsometric(0, y);
+      const endPos = gridToIsometric(board.size, y);
+
+      lines.push(
+        <View
+          key={`hline-${y}`}
+          style={{
+            position: 'absolute',
+            left: startPos.x,
+            top: startPos.y,
+            width: Math.abs(endPos.x - startPos.x),
+            height: 1,
+            backgroundColor: 'rgba(139, 69, 19, 0.6)',
+            zIndex: 50,
+          }}
+        />
+      );
+    }
+
+    return lines;
+  };
+
   const squares = getSquaresArray();
 
   return (
-    <View style={[styles.container, { width: boardSize, height: boardSize }]}>
+    <View style={[styles.container, { width: boardSize, height: boardSize * 0.8 }]}>
       {/* Background board */}
-      <View style={[styles.boardBackground, { width: boardSize, height: boardSize }]}>
-        {/* Simple border for debugging */}
+      <View style={[styles.boardBackground, { width: boardSize, height: boardSize * 0.8 }]}>
+        {/* Board border */}
         <View
           style={{
             position: 'absolute',
             left: 0,
             top: 0,
             width: boardSize,
-            height: boardSize,
-            borderWidth: 2,
-            borderColor: '#fff',
+            height: boardSize * 0.8,
+            borderWidth: 3,
+            borderColor: '#8b4513',
+            backgroundColor: 'rgba(139, 69, 19, 0.1)',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 6,
+            elevation: 8,
           }}
         />
-
-        {/* Grid lines for debugging */}
-        {Array.from({ length: board.size + 1 }, (_, i) => (
-          <React.Fragment key={`grid-${i}`}>
-            <View
-              style={{
-                position: 'absolute',
-                left: i * squareSize,
-                top: 0,
-                width: 1,
-                height: boardSize,
-                backgroundColor: '#555',
-              }}
-            />
-            <View
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: i * squareSize,
-                width: boardSize,
-                height: 1,
-                backgroundColor: '#555',
-              }}
-            />
-          </React.Fragment>
-        ))}
       </View>
+
+      {/* Grid lines */}
+      {renderGridLines()}
 
       {/* Squares */}
       {squares.map(({ x, y, stones }) => {
-        console.log(`Rendering square ${x},${y} with ${stones.length} stones:`, stones);
         return renderSquare(x, y, stones);
+      })}
+
+      {/* Stones - render on top of squares */}
+      {squares.map(({ x, y, stones }) => {
+        return stones.map((stone, stackIndex) =>
+          renderStone(stone, x, y, stackIndex)
+        );
       })}
 
       {/* Debug info */}
@@ -218,8 +278,6 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
         <Text style={styles.debugText}>Squares: {squares.length}</Text>
         <Text style={styles.debugText}>Selected: {selectedPieceType || 'none'}</Text>
         <Text style={styles.debugText}>Pieces: {Object.values(board.squares).flat().length}</Text>
-        <Text style={styles.debugText}>Sample: {JSON.stringify(Object.entries(board.squares).slice(0, 2))}</Text>
-        <Text style={styles.debugText}>Center: {Math.floor(board.size / 2)},{Math.floor(board.size / 2)}</Text>
       </View>
     </View>
   );
@@ -234,16 +292,17 @@ const styles = StyleSheet.create({
     marginVertical: 16,
     borderWidth: 2,
     borderColor: '#34495e',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
   },
   boardBackground: {
     position: 'absolute',
     backgroundColor: '#34495e',
   },
-  gridLine: {
-    position: 'absolute',
-    backgroundColor: '#555',
-  },
-  square: {
+  isometricSquare: {
     justifyContent: 'center',
     alignItems: 'center',
   },
