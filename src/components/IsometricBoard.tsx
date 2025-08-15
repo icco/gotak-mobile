@@ -33,17 +33,6 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
     return squares;
   };
 
-  const getIsometricCoordinates = (x: number, y: number) => {
-    const centerX = boardSize / 2;
-    const centerY = boardSize / 2;
-
-    // Simple isometric projection
-    const isoX = centerX + (x - y) * squareSize * 0.6;
-    const isoY = centerY + (x + y) * squareSize * 0.3;
-
-    return { x: isoX, y: isoY };
-  };
-
   const renderSquare = (x: number, y: number, stones: Stone[]) => {
     // Use simple grid coordinates for now
     const squareX = x * squareSize;
