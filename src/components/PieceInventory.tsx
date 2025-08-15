@@ -15,17 +15,18 @@ interface Props {
     capstone: number;
   };
   color: PlayerColor;
+  selectedPieceType?: PieceType;
   onPieceSelect: (pieceType: PieceType) => void;
 }
 
-export const PieceInventory: React.FC<Props> = ({ pieces, color, onPieceSelect }) => {
+export const PieceInventory: React.FC<Props> = ({ pieces, color, selectedPieceType, onPieceSelect }) => {
   const pieceColor = color === 'white' ? '#f8f9fa' : '#2c3e50';
   const strokeColor = color === 'white' ? '#dee2e6' : '#1a252f';
 
   const renderPieceIcon = (type: PieceType, size: number = 30) => {
     const centerX = size / 2;
     const centerY = size / 2;
-    
+
     switch (type) {
       case 'flat':
         return (
@@ -47,9 +48,9 @@ export const PieceInventory: React.FC<Props> = ({ pieces, color, onPieceSelect }
         const topRight = { x: centerX + width / 2, y: centerY - height / 2 };
         const bottomRight = { x: centerX + width / 2, y: centerY + height / 2 };
         const bottomLeft = { x: centerX - width / 2, y: centerY + height / 2 };
-        
+
         const points = `${topLeft.x},${topLeft.y} ${topRight.x},${topRight.y} ${bottomRight.x},${bottomRight.y} ${bottomLeft.x},${bottomLeft.y}`;
-        
+
         return (
           <Svg width={size} height={size}>
             <Polygon
@@ -79,10 +80,14 @@ export const PieceInventory: React.FC<Props> = ({ pieces, color, onPieceSelect }
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{color} Pieces</Text>
-      
+
       <View style={styles.piecesContainer}>
         <TouchableOpacity
-          style={[styles.pieceButton, pieces.flat === 0 && styles.disabledButton]}
+          style={[
+            styles.pieceButton,
+            pieces.flat === 0 && styles.disabledButton,
+            selectedPieceType === 'flat' && styles.selectedButton
+          ]}
           onPress={() => pieces.flat > 0 && onPieceSelect('flat')}
           disabled={pieces.flat === 0}
         >
@@ -90,9 +95,13 @@ export const PieceInventory: React.FC<Props> = ({ pieces, color, onPieceSelect }
           <Text style={styles.pieceCount}>{pieces.flat}</Text>
           <Text style={styles.pieceLabel}>Flat</Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
-          style={[styles.pieceButton, pieces.standing === 0 && styles.disabledButton]}
+          style={[
+            styles.pieceButton,
+            pieces.standing === 0 && styles.disabledButton,
+            selectedPieceType === 'standing' && styles.selectedButton
+          ]}
           onPress={() => pieces.standing > 0 && onPieceSelect('standing')}
           disabled={pieces.standing === 0}
         >
@@ -100,9 +109,13 @@ export const PieceInventory: React.FC<Props> = ({ pieces, color, onPieceSelect }
           <Text style={styles.pieceCount}>{pieces.standing}</Text>
           <Text style={styles.pieceLabel}>Standing</Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
-          style={[styles.pieceButton, pieces.capstone === 0 && styles.disabledButton]}
+          style={[
+            styles.pieceButton,
+            pieces.capstone === 0 && styles.disabledButton,
+            selectedPieceType === 'capstone' && styles.selectedButton
+          ]}
           onPress={() => pieces.capstone > 0 && onPieceSelect('capstone')}
           disabled={pieces.capstone === 0}
         >
@@ -142,6 +155,11 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  selectedButton: {
+    borderWidth: 2,
+    borderColor: '#3498db',
+    backgroundColor: '#2980b9',
   },
   pieceCount: {
     color: '#ecf0f1',

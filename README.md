@@ -60,7 +60,3 @@ expo build:android --type app-bundle
 - `src/services/` - API and external services  
 - `src/types/` - TypeScript type definitions
 - `src/utils/` - Utility functions
-
-## Contributing
-
-This project uses GitHub Actions for CI/CD. All pull requests are automatically tested and built.

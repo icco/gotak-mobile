@@ -1,6 +1,47 @@
 export type PieceType = 'flat' | 'standing' | 'capstone';
 export type PlayerColor = 'white' | 'black';
 
+export interface Stone {
+  player: number;
+  type: string;
+}
+
+export interface Board {
+  size: number;
+  squares: { [key: string]: Stone[] };
+}
+
+export interface Move {
+  moveCount?: number;
+  moveDirection?: string;
+  moveDropCounts?: number[];
+  square: string;
+  stone: string;
+  text: string;
+}
+
+export interface Turn {
+  comment?: string;
+  first: Move;
+  number: number;
+  result?: string;
+  second?: Move;
+}
+
+export interface Tag {
+  key: string;
+  value: string;
+}
+
+export interface GameState {
+  id: number;
+  slug: string;
+  board: Board;
+  turns: Turn[];
+  meta: Tag[];
+}
+
+// Legacy types for backward compatibility with UI components
 export interface Piece {
   id: string;
   type: PieceType;
@@ -14,27 +55,10 @@ export interface Position {
   stackIndex: number;
 }
 
-export interface Board {
-  size: number;
-  squares: Square[][];
-}
-
 export interface Square {
   pieces: Piece[];
   x: number;
   y: number;
-}
-
-export interface GameState {
-  id: string;
-  board: Board;
-  currentPlayer: PlayerColor;
-  players: {
-    white: PlayerInfo;
-    black: PlayerInfo;
-  };
-  gameStatus: 'waiting' | 'active' | 'finished';
-  winner?: PlayerColor;
 }
 
 export interface PlayerInfo {
@@ -47,7 +71,19 @@ export interface PlayerInfo {
   };
 }
 
-export interface Move {
+export interface LegacyGameState {
+  id: string;
+  board: Board;
+  currentPlayer: PlayerColor;
+  players: {
+    white: PlayerInfo;
+    black: PlayerInfo;
+  };
+  gameStatus: 'waiting' | 'active' | 'finished';
+  winner?: PlayerColor;
+}
+
+export interface LegacyMove {
   from?: Position;
   to: Position;
   piece: Piece;

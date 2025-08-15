@@ -15,6 +15,7 @@ import { GameState, PieceType } from '../types/game';
 import { gotakAPI } from '../services/api';
 import { IsometricBoard } from '../components/IsometricBoard';
 import { PieceInventory } from '../components/PieceInventory';
+import { isAxiosError } from 'axios';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
@@ -32,19 +33,54 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   const initializeGame = useCallback(async () => {
     try {
       setLoading(true);
-      const gameId = route.params?.gameId;
-      
+      const gameSlug = route.params?.gameId;
+
+      // Test connection first
+      const isConnected = await gotakAPI.testConnection();
+      if (!isConnected) {
+        Alert.alert('Connection Error', 'Cannot connect to the game server. Please check your internet connection and try again.');
+        return;
+      }
+
       let game: GameState;
-      if (gameId) {
-        game = await gotakAPI.getGame(gameId);
+      if (gameSlug) {
+        game = await gotakAPI.getGame(gameSlug);
       } else {
         game = await gotakAPI.createGame(5);
       }
-      
+
+      // Debug logging to see the board structure
+      console.log('Game loaded:', game);
+      console.log('Board size:', game.board.size);
+      console.log('Board squares:', game.board.squares);
+      console.log('Sample square data:', Object.entries(game.board.squares).slice(0, 3));
+
+      // Log the actual content of squares to see stone structure
+      Object.entries(game.board.squares).forEach(([key, stones]) => {
+        if (stones.length > 0) {
+          console.log(`Square ${key} has ${stones.length} stones:`, stones);
+        }
+      });
+
       setGameState(game);
     } catch (error) {
-      Alert.alert('Error', 'Failed to initialize game');
       console.error('Game initialization error:', error);
+
+      let errorMessage = 'Failed to initialize game';
+      if (isAxiosError(error)) {
+        const status = error.response?.status;
+        if (status === 404) {
+          errorMessage = 'Game not found. Please check the game ID.';
+        } else if (status && status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        } else if (error.code === 'NETWORK_ERROR') {
+          errorMessage = 'Network error. Please check your internet connection.';
+        } else {
+          errorMessage = `Server error: ${status} - ${error.response?.data?.message || error.message}`;
+        }
+      }
+
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -56,9 +92,9 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleShareGame = async () => {
     if (!gameState) return;
-    
+
     try {
-      const gameLink = await gotakAPI.getGameLink(gameState.id);
+      const gameLink = await gotakAPI.getGameLink(gameState.slug);
       await Share.share({
         message: `Join my Tak game: ${gameLink}`,
         url: gameLink,
@@ -69,26 +105,90 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handlePlacePiece = async (x: number, y: number, pieceType: PieceType) => {
-    if (!gameState) return;
+    if (!gameState) {
+      console.log('No game state available');
+      return;
+    }
+
+    console.log('Attempting to place piece:', { x, y, pieceType, selectedPieceType });
 
     try {
-      const move = {
-        to: { x, y, stackIndex: 0 },
-        piece: {
-          id: `temp-${crypto.randomUUID()}`,
-          type: pieceType,
-          color: gameState.currentPlayer,
-        },
-        moveType: 'place' as const,
-      };
+      // Convert coordinates to chess notation (e.g., "c3")
+      const file = String.fromCharCode(97 + x); // 'a' starts at 97
+      const rank = y + 1;
+      const square = `${file}${rank}`;
 
-      const updatedGame = await gotakAPI.makeMove(gameState.id, move);
+      console.log('Coordinate conversion:', { x, y, file, rank, square });
+      console.log('Expected square mapping:', {
+        '0,0': 'a1', '1,0': 'b1', '2,0': 'c1', '3,0': 'd1', '4,0': 'e1',
+        '0,1': 'a2', '1,1': 'b2', '2,1': 'c2', '3,1': 'd2', '4,1': 'e2',
+        '0,2': 'a3', '1,2': 'b3', '2,2': 'c3', '3,2': 'd3', '4,2': 'e3',
+        '0,3': 'a4', '1,3': 'b4', '2,3': 'c4', '3,3': 'd4', '4,3': 'e4',
+        '0,4': 'a5', '1,4': 'b5', '2,4': 'c5', '3,4': 'd5', '4,4': 'e5',
+      });
+
+      // Determine current player (1 for white, 2 for black)
+      const currentTurn = (gameState.turns?.length || 0) + 1;
+      const currentPlayer = currentTurn % 2 === 1 ? 1 : 2;
+
+      // Convert piece type to API format
+      let stoneType = 'flat';
+      if (pieceType === 'standing') {
+        stoneType = 'wall';
+      } else if (pieceType === 'capstone') {
+        stoneType = 'capstone';
+      }
+
+      console.log('Making move:', { square, currentPlayer, currentTurn, stoneType });
+
+      const updatedGame = await gotakAPI.makeMove(gameState.slug, square, currentPlayer, currentTurn, stoneType);
+      console.log('Move successful, updated game:', updatedGame);
+      console.log('Updated board squares:', updatedGame.board.squares);
+      console.log('Square that should have a piece:', square);
+      console.log('Content of that square:', updatedGame.board.squares[square]);
+
+      // Log all non-empty squares
+      Object.entries(updatedGame.board.squares).forEach(([key, stones]) => {
+        if (stones.length > 0) {
+          console.log(`Square ${key} has ${stones.length} stones:`, stones);
+        }
+      });
+
       setGameState(updatedGame);
       setSelectedPieceType(undefined);
+
+      // Try refreshing the game state after a short delay to see if the board updates
+      setTimeout(async () => {
+        try {
+          console.log('Refreshing game state after move...');
+          const refreshedGame = await gotakAPI.getGame(gameState.slug);
+          console.log('Refreshed game state:', refreshedGame);
+          console.log('Refreshed board squares:', refreshedGame.board.squares);
+          setGameState(refreshedGame);
+        } catch (error) {
+          console.error('Error refreshing game state:', error);
+        }
+      }, 1000);
     } catch (error) {
-      Alert.alert('Error', 'Failed to place piece');
       console.error('Place piece error:', error);
+      Alert.alert('Error', 'Failed to place piece. Please try again.');
     }
+  };
+
+  // Helper function to get current player color
+  const getCurrentPlayerColor = () => {
+    if (!gameState) return 'white';
+    const currentTurn = (gameState.turns?.length || 0) + 1;
+    return currentTurn % 2 === 1 ? 'white' : 'black';
+  };
+
+  // Helper function to get game status
+  const getGameStatus = () => {
+    if (!gameState) return 'loading';
+    if (!gameState.turns || gameState.turns.length === 0) return 'waiting';
+    const lastTurn = gameState.turns[gameState.turns.length - 1];
+    if (lastTurn.result) return 'finished';
+    return 'active';
   };
 
   if (loading) {
@@ -122,13 +222,22 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={styles.shareButtonText}>Share</Text>
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.gameInfo}>
         <Text style={styles.currentPlayer}>
-          Current Player: {gameState.currentPlayer}
+          Current Player: {getCurrentPlayerColor()}
         </Text>
         <Text style={styles.gameStatus}>
-          Status: {gameState.gameStatus}
+          Status: {getGameStatus()}
+        </Text>
+        <Text style={styles.turnInfo}>
+          Turn: {(gameState.turns?.length || 0) + 1}
+        </Text>
+        <Text style={styles.debugInfo}>
+          Board Size: {gameState.board.size} | Squares: {Object.keys(gameState.board.squares).length}
+        </Text>
+        <Text style={styles.debugInfo}>
+          Sample Squares: {Object.keys(gameState.board.squares).slice(0, 3).join(', ')}
         </Text>
       </View>
 
@@ -142,15 +251,21 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
             }
           }}
         />
-        
+
         <PieceInventory
-          pieces={gameState.players.white.pieces}
+          pieces={{
+            flat: 21, // Default piece counts for 5x5 board
+            standing: 1,
+            capstone: 1,
+          }}
           color="white"
+          selectedPieceType={selectedPieceType}
           onPieceSelect={(pieceType) => {
+            console.log('Piece selected:', pieceType);
             setSelectedPieceType(selectedPieceType === pieceType ? undefined : pieceType);
           }}
         />
-        
+
         {selectedPieceType && (
           <View style={styles.selectedPieceIndicator}>
             <Text style={styles.selectedPieceText}>
@@ -210,6 +325,11 @@ const styles = StyleSheet.create({
     color: '#bdc3c7',
     fontSize: 14,
   },
+  turnInfo: {
+    color: '#ecf0f1',
+    fontSize: 14,
+    marginTop: 4,
+  },
   gameArea: {
     flex: 1,
     padding: 16,
@@ -268,5 +388,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  debugInfo: {
+    color: '#95a5a6',
+    fontSize: 12,
+    marginTop: 4,
   },
 });

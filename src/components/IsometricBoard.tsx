@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import Svg, { Polygon, Circle } from 'react-native-svg';
-import { Board, Square, Piece, PieceType } from '../types/game';
+import { View, StyleSheet, TouchableOpacity, Dimensions, Text } from 'react-native';
+import { Board, Stone, PieceType } from '../types/game';
 
 interface Props {
   board: Board;
@@ -12,114 +11,216 @@ interface Props {
 export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selectedPieceType }) => {
   const screenWidth = Dimensions.get('window').width;
   const boardSize = Math.min(screenWidth - 32, 400);
-  const squareSize = boardSize / (board.size * 1.2);
+  const squareSize = boardSize / board.size; // Simple grid layout
 
-  const getIsometricCoordinates = (x: number, y: number) => {
-    const centerX = boardSize / 2;
-    const centerY = boardSize / 2;
-    
-    const isoX = centerX + (x - y) * squareSize * 0.5;
-    const isoY = centerY + (x + y) * squareSize * 0.25;
-    
-    return { x: isoX, y: isoY };
+  // Debug logging
+  console.log('IsometricBoard render:', { boardSize, squareSize, boardSizeValue: board.size, squares: Object.keys(board.squares) });
+
+  // Convert board.squares object to array of squares with coordinates
+  const getSquaresArray = () => {
+    const squares: { x: number; y: number; stones: Stone[] }[] = [];
+
+    for (let y = 0; y < board.size; y++) {
+      for (let x = 0; x < board.size; x++) {
+        const file = String.fromCharCode(97 + x); // 'a' starts at 97
+        const rank = y + 1;
+        const key = `${file}${rank}`;
+        const stones = board.squares[key] || [];
+        squares.push({ x, y, stones });
+      }
+    }
+
+    return squares;
   };
 
-  const renderSquare = (square: Square) => {
-    const { x: isoX, y: isoY } = getIsometricCoordinates(square.x, square.y);
-    const size = squareSize * 0.8;
-    
-    const topLeft = { x: isoX - size / 2, y: isoY - size / 4 };
-    const topRight = { x: isoX + size / 2, y: isoY - size / 4 };
-    const bottomRight = { x: isoX + size / 2, y: isoY + size / 4 };
-    const bottomLeft = { x: isoX - size / 2, y: isoY + size / 4 };
-    
-    const points = `${topLeft.x},${topLeft.y} ${topRight.x},${topRight.y} ${bottomRight.x},${bottomRight.y} ${bottomLeft.x},${bottomLeft.y}`;
-    
-    const canPlacePiece = selectedPieceType && square.pieces.length === 0;
-    const squareColor = canPlacePiece ? "#a0522d" : "#8b4513";
-    const strokeColor = canPlacePiece ? "#deb887" : "#654321";
-    
+  const renderSquare = (x: number, y: number, stones: Stone[]) => {
+    // Use simple grid coordinates for now
+    const squareX = x * squareSize;
+    const squareY = y * squareSize;
+    const size = squareSize * 0.9;
+
+    const canPlacePiece = selectedPieceType && stones.length === 0;
+    const squareColor = canPlacePiece ? "#d2691e" : "#8b4513";
+    const strokeColor = canPlacePiece ? "#ffd700" : "#654321";
+
     return (
-      <TouchableOpacity
-        key={`square-${square.x}-${square.y}`}
-        style={StyleSheet.absoluteFillObject}
-        onPress={() => onSquarePress(square.x, square.y)}
+      <View
+        key={`square-${x}-${y}`}
+        style={[
+          styles.square,
+          {
+            position: 'absolute',
+            left: squareX,
+            top: squareY,
+            width: size,
+            height: size,
+            backgroundColor: squareColor,
+            borderWidth: canPlacePiece ? 3 : 1,
+            borderColor: strokeColor,
+          }
+        ]}
       >
-        <Svg>
-          <Polygon
-            points={points}
-            fill={squareColor}
-            stroke={strokeColor}
-            strokeWidth={canPlacePiece ? "2" : "1"}
-          />
-          {square.pieces.map((piece, stackIndex) => 
-            renderPiece(piece, isoX, isoY - (stackIndex * 6), stackIndex)
-          )}
-        </Svg>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.squareTouchable}
+          onPress={() => {
+            console.log('Square pressed:', x, y);
+            onSquarePress(x, y);
+          }}
+        >
+          {/* Render stones on top of the square */}
+          {stones.map((stone, stackIndex) => {
+            console.log(`Rendering stone ${stackIndex} in square ${x},${y}:`, stone);
+            return renderStone(stone, size / 2, size / 2 - (stackIndex * 6), stackIndex);
+          })}
+        </TouchableOpacity>
+      </View>
     );
   };
 
-  const renderPiece = (piece: Piece, x: number, y: number, stackIndex: number) => {
-    const pieceSize = squareSize * 0.3;
-    const color = piece.color === 'white' ? '#f8f9fa' : '#2c3e50';
-    const strokeColor = piece.color === 'white' ? '#dee2e6' : '#1a252f';
-    
-    if (piece.type === 'standing') {
+  const renderStone = (stone: Stone, x: number, y: number, stackIndex: number) => {
+    const pieceSize = squareSize * 0.2;
+    const color = stone.player === 1 ? '#f8f9fa' : '#2c3e50'; // 1 = white, 2 = black
+    const strokeColor = stone.player === 1 ? '#dee2e6' : '#1a252f';
+
+    // Handle different possible type values from the API
+    const stoneType = stone.type?.toLowerCase() || 'flat';
+
+    if (stoneType === 'wall' || stoneType === 'standing') {
+      // Standing piece - render as a tall rectangle
       const height = pieceSize * 1.5;
       const width = pieceSize * 0.6;
-      const topLeft = { x: x - width / 2, y: y - height / 2 };
-      const topRight = { x: x + width / 2, y: y - height / 2 };
-      const bottomRight = { x: x + width / 2, y: y + height / 2 };
-      const bottomLeft = { x: x - width / 2, y: y + height / 2 };
-      
-      const points = `${topLeft.x},${topLeft.y} ${topRight.x},${topRight.y} ${bottomRight.x},${bottomRight.y} ${bottomLeft.x},${bottomLeft.y}`;
-      
+
       return (
-        <Polygon
-          key={`piece-${piece.id}-${stackIndex}`}
-          points={points}
-          fill={color}
-          stroke={strokeColor}
-          strokeWidth="1"
+        <View
+          key={`stone-${stackIndex}`}
+          style={[
+            styles.stone,
+            {
+              width: width,
+              height: height,
+              backgroundColor: color,
+              borderWidth: 1,
+              borderColor: strokeColor,
+              position: 'absolute',
+              left: x - width / 2,
+              top: y - height / 2,
+              zIndex: 10, // Ensure stones are on top
+            }
+          ]}
         />
       );
-    } else if (piece.type === 'capstone') {
+    } else if (stoneType === 'capstone') {
+      // Capstone - render as a larger circle with special styling
+      const radius = pieceSize * 0.6;
+
       return (
-        <Circle
-          key={`piece-${piece.id}-${stackIndex}`}
-          cx={x}
-          cy={y}
-          r={pieceSize * 0.6}
-          fill={color}
-          stroke={strokeColor}
-          strokeWidth="2"
+        <View
+          key={`stone-${stackIndex}`}
+          style={[
+            styles.stone,
+            {
+              width: radius * 2,
+              height: radius * 2,
+              borderRadius: radius,
+              backgroundColor: color,
+              borderWidth: 3,
+              borderColor: strokeColor,
+              position: 'absolute',
+              left: x - radius,
+              top: y - radius,
+              zIndex: 10,
+            }
+          ]}
         />
       );
     } else {
+      // Flat stone - render as a regular circle
+      const radius = pieceSize * 0.4;
+
       return (
-        <Circle
-          key={`piece-${piece.id}-${stackIndex}`}
-          cx={x}
-          cy={y}
-          r={pieceSize * 0.4}
-          fill={color}
-          stroke={strokeColor}
-          strokeWidth="1"
+        <View
+          key={`stone-${stackIndex}`}
+          style={[
+            styles.stone,
+            {
+              width: radius * 2,
+              height: radius * 2,
+              borderRadius: radius,
+              backgroundColor: color,
+              borderWidth: 1,
+              borderColor: strokeColor,
+              position: 'absolute',
+              left: x - radius,
+              top: y - radius,
+              zIndex: 10,
+            }
+          ]}
         />
       );
     }
   };
 
+  const squares = getSquaresArray();
+
   return (
     <View style={[styles.container, { width: boardSize, height: boardSize }]}>
-      <Svg width={boardSize} height={boardSize}>
-        {board.squares.flat().map(square => (
-          <React.Fragment key={`square-${square.x}-${square.y}`}>
-            {renderSquare(square)}
+      {/* Background board */}
+      <View style={[styles.boardBackground, { width: boardSize, height: boardSize }]}>
+        {/* Simple border for debugging */}
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: boardSize,
+            height: boardSize,
+            borderWidth: 2,
+            borderColor: '#fff',
+          }}
+        />
+
+        {/* Grid lines for debugging */}
+        {Array.from({ length: board.size + 1 }, (_, i) => (
+          <React.Fragment key={`grid-${i}`}>
+            <View
+              style={{
+                position: 'absolute',
+                left: i * squareSize,
+                top: 0,
+                width: 1,
+                height: boardSize,
+                backgroundColor: '#555',
+              }}
+            />
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: i * squareSize,
+                width: boardSize,
+                height: 1,
+                backgroundColor: '#555',
+              }}
+            />
           </React.Fragment>
         ))}
-      </Svg>
+      </View>
+
+      {/* Squares */}
+      {squares.map(({ x, y, stones }) => {
+        console.log(`Rendering square ${x},${y} with ${stones.length} stones:`, stones);
+        return renderSquare(x, y, stones);
+      })}
+
+      {/* Debug info */}
+      <View style={styles.debugInfo}>
+        <Text style={styles.debugText}>Board: {board.size}x{board.size}</Text>
+        <Text style={styles.debugText}>Squares: {squares.length}</Text>
+        <Text style={styles.debugText}>Selected: {selectedPieceType || 'none'}</Text>
+        <Text style={styles.debugText}>Pieces: {Object.values(board.squares).flat().length}</Text>
+        <Text style={styles.debugText}>Sample: {JSON.stringify(Object.entries(board.squares).slice(0, 2))}</Text>
+        <Text style={styles.debugText}>Center: {Math.floor(board.size / 2)},{Math.floor(board.size / 2)}</Text>
+      </View>
     </View>
   );
 };
@@ -127,8 +228,45 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
 const styles = StyleSheet.create({
   container: {
     alignSelf: 'center',
-    backgroundColor: '#34495e',
+    backgroundColor: '#2c3e50',
     borderRadius: 8,
     padding: 16,
+    marginVertical: 16,
+    borderWidth: 2,
+    borderColor: '#34495e',
+  },
+  boardBackground: {
+    position: 'absolute',
+    backgroundColor: '#34495e',
+  },
+  gridLine: {
+    position: 'absolute',
+    backgroundColor: '#555',
+  },
+  square: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  squareTouchable: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  debugInfo: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    padding: 8,
+    borderRadius: 4,
+  },
+  debugText: {
+    color: '#fff',
+    fontSize: 10,
+  },
+  stone: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
