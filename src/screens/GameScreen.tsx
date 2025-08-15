@@ -49,6 +49,12 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
         game = await gotakAPI.createGame(5);
       }
 
+      // Debug logging to see the board structure
+      console.log('Game loaded:', game);
+      console.log('Board size:', game.board.size);
+      console.log('Board squares:', game.board.squares);
+      console.log('Sample square data:', Object.entries(game.board.squares).slice(0, 3));
+
       setGameState(game);
     } catch (error) {
       console.error('Game initialization error:', error);
@@ -104,12 +110,22 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       const currentTurn = (gameState.turns?.length || 0) + 1;
       const currentPlayer = currentTurn % 2 === 1 ? 1 : 2;
 
-      const updatedGame = await gotakAPI.makeMove(gameState.slug, square, currentPlayer, currentTurn);
+      // Convert piece type to API format
+      let stoneType = 'flat';
+      if (pieceType === 'standing') {
+        stoneType = 'wall';
+      } else if (pieceType === 'capstone') {
+        stoneType = 'capstone';
+      }
+
+      console.log('Making move:', { square, currentPlayer, currentTurn, stoneType });
+
+      const updatedGame = await gotakAPI.makeMove(gameState.slug, square, currentPlayer, currentTurn, stoneType);
       setGameState(updatedGame);
       setSelectedPieceType(undefined);
     } catch (error) {
-      Alert.alert('Error', 'Failed to place piece');
       console.error('Place piece error:', error);
+      Alert.alert('Error', 'Failed to place piece. Please try again.');
     }
   };
 
@@ -170,6 +186,12 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
         </Text>
         <Text style={styles.turnInfo}>
           Turn: {(gameState.turns?.length || 0) + 1}
+        </Text>
+        <Text style={styles.debugInfo}>
+          Board Size: {gameState.board.size} | Squares: {Object.keys(gameState.board.squares).length}
+        </Text>
+        <Text style={styles.debugInfo}>
+          Sample Squares: {Object.keys(gameState.board.squares).slice(0, 3).join(', ')}
         </Text>
       </View>
 
@@ -318,5 +340,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  debugInfo: {
+    color: '#95a5a6',
+    fontSize: 12,
+    marginTop: 4,
   },
 });

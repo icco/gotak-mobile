@@ -75,11 +75,12 @@ class GotakAPI {
     };
   }
 
-  async makeMove(slug: string, move: string, player: number, turn: number): Promise<GameState> {
+  async makeMove(slug: string, move: string, player: number, turn: number, stoneType: string = 'flat'): Promise<GameState> {
     const response = await this.client.post(`/game/${slug}/move`, {
       move,
       player,
       turn,
+      stone: stoneType,
     });
     const apiData = response.data;
 
