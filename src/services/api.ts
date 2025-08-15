@@ -76,16 +76,26 @@ class GotakAPI {
   }
 
   async makeMove(slug: string, move: string, player: number, turn: number, stoneType: string = 'flat'): Promise<GameState> {
-    const response = await this.client.post(`/game/${slug}/move`, {
-      move,
+    console.log('Making move request:', { slug, move, player, turn, stoneType });
+    
+    // According to the GoTak documentation, the move should be just the square
+    // The stone type is determined by the game logic, not specified in the request
+    const moveData = {
       player,
+      move: move, // Just the square like "b5"
       turn,
-      stone: stoneType,
-    });
+    };
+    
+    console.log('Move data being sent:', moveData);
+    
+    const response = await this.client.post(`/game/${slug}/move`, moveData);
+    
+    console.log('Raw API response:', response.data);
+    console.log('Raw API response (stringified):', JSON.stringify(response.data, null, 2));
     const apiData = response.data;
 
     // Transform API response to match our expected structure
-    return {
+    const transformedGame = {
       id: apiData.ID,
       slug: apiData.Slug,
       board: {
@@ -95,6 +105,11 @@ class GotakAPI {
       turns: apiData.Turns || [],
       meta: apiData.Meta || [],
     };
+    
+    console.log('Transformed game:', transformedGame);
+    console.log('Board squares after transform:', transformedGame.board.squares);
+
+    return transformedGame;
   }
 
   async getGameAtTurn(slug: string, turn: number): Promise<any> {

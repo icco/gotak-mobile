@@ -118,6 +118,15 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       const rank = y + 1;
       const square = `${file}${rank}`;
 
+      console.log('Coordinate conversion:', { x, y, file, rank, square });
+      console.log('Expected square mapping:', {
+        '0,0': 'a1', '1,0': 'b1', '2,0': 'c1', '3,0': 'd1', '4,0': 'e1',
+        '0,1': 'a2', '1,1': 'b2', '2,1': 'c2', '3,1': 'd2', '4,1': 'e2',
+        '0,2': 'a3', '1,2': 'b3', '2,2': 'c3', '3,2': 'd3', '4,2': 'e3',
+        '0,3': 'a4', '1,3': 'b4', '2,3': 'c4', '3,3': 'd4', '4,3': 'e4',
+        '0,4': 'a5', '1,4': 'b5', '2,4': 'c5', '3,4': 'd5', '4,4': 'e5',
+      });
+
       // Determine current player (1 for white, 2 for black)
       const currentTurn = (gameState.turns?.length || 0) + 1;
       const currentPlayer = currentTurn % 2 === 1 ? 1 : 2;
@@ -134,8 +143,32 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
 
       const updatedGame = await gotakAPI.makeMove(gameState.slug, square, currentPlayer, currentTurn, stoneType);
       console.log('Move successful, updated game:', updatedGame);
+      console.log('Updated board squares:', updatedGame.board.squares);
+      console.log('Square that should have a piece:', square);
+      console.log('Content of that square:', updatedGame.board.squares[square]);
+
+      // Log all non-empty squares
+      Object.entries(updatedGame.board.squares).forEach(([key, stones]) => {
+        if (stones.length > 0) {
+          console.log(`Square ${key} has ${stones.length} stones:`, stones);
+        }
+      });
+
       setGameState(updatedGame);
       setSelectedPieceType(undefined);
+
+      // Try refreshing the game state after a short delay to see if the board updates
+      setTimeout(async () => {
+        try {
+          console.log('Refreshing game state after move...');
+          const refreshedGame = await gotakAPI.getGame(gameState.slug);
+          console.log('Refreshed game state:', refreshedGame);
+          console.log('Refreshed board squares:', refreshedGame.board.squares);
+          setGameState(refreshedGame);
+        } catch (error) {
+          console.error('Error refreshing game state:', error);
+        }
+      }, 1000);
     } catch (error) {
       console.error('Place piece error:', error);
       Alert.alert('Error', 'Failed to place piece. Please try again.');

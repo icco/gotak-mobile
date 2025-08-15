@@ -11,7 +11,7 @@ interface Props {
 export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selectedPieceType }) => {
   const screenWidth = Dimensions.get('window').width;
   const boardSize = Math.min(screenWidth - 32, 400);
-  const squareSize = boardSize / (board.size * 1.2); // Adjust for isometric spacing
+  const squareSize = boardSize / board.size; // Simple grid layout
 
   // Debug logging
   console.log('IsometricBoard render:', { boardSize, squareSize, boardSizeValue: board.size, squares: Object.keys(board.squares) });
@@ -45,8 +45,10 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
   };
 
   const renderSquare = (x: number, y: number, stones: Stone[]) => {
-    const { x: isoX, y: isoY } = getIsometricCoordinates(x, y);
-    const size = squareSize * 0.7;
+    // Use simple grid coordinates for now
+    const squareX = x * squareSize;
+    const squareY = y * squareSize;
+    const size = squareSize * 0.9;
 
     const canPlacePiece = selectedPieceType && stones.length === 0;
     const squareColor = canPlacePiece ? "#d2691e" : "#8b4513";
@@ -56,6 +58,12 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
     const showTestPiece = Object.values(board.squares).every(s => s.length === 0) &&
       x === Math.floor(board.size / 2) && y === Math.floor(board.size / 2);
 
+    // Add a test piece to show rendering works
+    const showDebugPiece = x === 1 && y === 1; // Show in square (1,1) which should be b2
+
+    // Add pieces to corners to help visualize the board
+    const showCornerPiece = (x === 0 && y === 0) || (x === 4 && y === 0) || (x === 0 && y === 4) || (x === 4 && y === 4);
+
     return (
       <View
         key={`square-${x}-${y}`}
@@ -63,17 +71,13 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
           styles.square,
           {
             position: 'absolute',
-            left: isoX - size / 2,
-            top: isoY - size / 2,
+            left: squareX,
+            top: squareY,
             width: size,
             height: size,
             backgroundColor: squareColor,
             borderWidth: canPlacePiece ? 3 : 1,
             borderColor: strokeColor,
-            transform: [
-              { rotate: '45deg' },
-              { scaleY: 0.5 }
-            ],
           }
         ]}
       >
@@ -103,6 +107,42 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
                 position: 'absolute',
                 left: size / 2 - 10,
                 top: size / 2 - 10,
+                zIndex: 20,
+              }}
+            />
+          )}
+
+          {/* Debug piece to verify rendering works */}
+          {showDebugPiece && (
+            <View
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                backgroundColor: '#00ff00',
+                borderWidth: 2,
+                borderColor: '#000',
+                position: 'absolute',
+                left: size / 2 - 15,
+                top: size / 2 - 15,
+                zIndex: 20,
+              }}
+            />
+          )}
+
+          {/* Corner pieces to help visualize board */}
+          {showCornerPiece && (
+            <View
+              style={{
+                width: 25,
+                height: 25,
+                borderRadius: 12.5,
+                backgroundColor: '#0000ff',
+                borderWidth: 2,
+                borderColor: '#fff',
+                position: 'absolute',
+                left: size / 2 - 12.5,
+                top: size / 2 - 12.5,
                 zIndex: 20,
               }}
             />
@@ -213,6 +253,32 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
             borderColor: '#fff',
           }}
         />
+
+        {/* Grid lines for debugging */}
+        {Array.from({ length: board.size + 1 }, (_, i) => (
+          <React.Fragment key={`grid-${i}`}>
+            <View
+              style={{
+                position: 'absolute',
+                left: i * squareSize,
+                top: 0,
+                width: 1,
+                height: boardSize,
+                backgroundColor: '#555',
+              }}
+            />
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: i * squareSize,
+                width: boardSize,
+                height: 1,
+                backgroundColor: '#555',
+              }}
+            />
+          </React.Fragment>
+        ))}
       </View>
 
       {/* Squares */}
@@ -228,6 +294,7 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
         <Text style={styles.debugText}>Selected: {selectedPieceType || 'none'}</Text>
         <Text style={styles.debugText}>Pieces: {Object.values(board.squares).flat().length}</Text>
         <Text style={styles.debugText}>Sample: {JSON.stringify(Object.entries(board.squares).slice(0, 2))}</Text>
+        <Text style={styles.debugText}>Center: {Math.floor(board.size / 2)},{Math.floor(board.size / 2)}</Text>
       </View>
     </View>
   );
