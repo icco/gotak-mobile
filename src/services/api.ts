@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { GameState, Move } from '../types/game';
+import axios, { isAxiosError } from 'axios';
+import { GameState } from '../types/game';
 import { API_CONFIG } from '../config/api';
 
 class GotakAPI {
@@ -34,7 +34,7 @@ class GotakAPI {
       });
 
       console.log('Game created successfully:', response.data);
-      
+
       // Transform API response to match our expected structure
       const apiData = response.data;
       return {
@@ -49,7 +49,7 @@ class GotakAPI {
       };
     } catch (error) {
       console.error('Error creating game:', error);
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         console.error('Response status:', error.response?.status);
         console.error('Response data:', error.response?.data);
         console.error('Response headers:', error.response?.headers);
@@ -61,7 +61,7 @@ class GotakAPI {
   async getGame(slug: string): Promise<GameState> {
     const response = await this.client.get(`/game/${slug}`);
     const apiData = response.data;
-    
+
     // Transform API response to match our expected structure
     return {
       id: apiData.ID,
@@ -82,7 +82,7 @@ class GotakAPI {
       turn,
     });
     const apiData = response.data;
-    
+
     // Transform API response to match our expected structure
     return {
       id: apiData.ID,

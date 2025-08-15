@@ -15,7 +15,7 @@ import { GameState, PieceType } from '../types/game';
 import { gotakAPI } from '../services/api';
 import { IsometricBoard } from '../components/IsometricBoard';
 import { PieceInventory } from '../components/PieceInventory';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
@@ -54,7 +54,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       console.error('Game initialization error:', error);
 
       let errorMessage = 'Failed to initialize game';
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         const status = error.response?.status;
         if (status === 404) {
           errorMessage = 'Game not found. Please check the game ID.';
@@ -99,15 +99,10 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       const file = String.fromCharCode(97 + x); // 'a' starts at 97
       const rank = y + 1;
       const square = `${file}${rank}`;
-      
+
       // Determine current player (1 for white, 2 for black)
       const currentTurn = (gameState.turns?.length || 0) + 1;
       const currentPlayer = currentTurn % 2 === 1 ? 1 : 2;
-      
-      // Determine stone type based on piece type
-      let stoneType = 'flat';
-      if (pieceType === 'standing') stoneType = 'wall';
-      else if (pieceType === 'capstone') stoneType = 'capstone';
 
       const updatedGame = await gotakAPI.makeMove(gameState.slug, square, currentPlayer, currentTurn);
       setGameState(updatedGame);
