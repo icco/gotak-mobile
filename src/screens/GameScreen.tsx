@@ -55,6 +55,13 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       console.log('Board squares:', game.board.squares);
       console.log('Sample square data:', Object.entries(game.board.squares).slice(0, 3));
 
+      // Log the actual content of squares to see stone structure
+      Object.entries(game.board.squares).forEach(([key, stones]) => {
+        if (stones.length > 0) {
+          console.log(`Square ${key} has ${stones.length} stones:`, stones);
+        }
+      });
+
       setGameState(game);
     } catch (error) {
       console.error('Game initialization error:', error);
