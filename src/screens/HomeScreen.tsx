@@ -17,7 +17,7 @@ interface Props {
 
 export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const handleNewGame = () => {
-    navigation.navigate('Game');
+    navigation.navigate('Game', {});
   };
 
   const handleJoinGame = () => {
@@ -30,17 +30,17 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.content}>
         <Text style={styles.title}>Tak</Text>
         <Text style={styles.subtitle}>The Beautiful Game</Text>
-        
+
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.button} onPress={handleNewGame}>
             <Text style={styles.buttonText}>New Game</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.button} onPress={handleJoinGame}>
             <Text style={styles.buttonText}>Join Game</Text>
           </TouchableOpacity>
         </View>
-        
+
         <Text style={styles.description}>
           Tak is a two-player board game where you build roads of stones to connect opposite sides of the board.
         </Text>
