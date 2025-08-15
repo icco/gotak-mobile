@@ -12,35 +12,39 @@ interface Props {
 export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selectedPieceType }) => {
   const screenWidth = Dimensions.get('window').width;
   const boardSize = Math.min(screenWidth - 32, 400);
-  const squareSize = boardSize / (board.size * 1.2);
+  const squareSize = boardSize / board.size;
 
   // Debug logging
   console.log('IsometricBoard render:', { boardSize, squareSize, boardSizeValue: board.size, squares: Object.keys(board.squares) });
 
-  const getIsometricCoordinates = (x: number, y: number) => {
-    const centerX = boardSize / 2;
-    const centerY = boardSize / 2;
+  // Convert board.squares object to array of squares with coordinates
+  const getSquaresArray = () => {
+    const squares: { x: number; y: number; stones: Stone[] }[] = [];
 
-    const isoX = centerX + (x - y) * squareSize * 0.5;
-    const isoY = centerY + (x + y) * squareSize * 0.25;
+    for (let y = 0; y < board.size; y++) {
+      for (let x = 0; x < board.size; x++) {
+        const file = String.fromCharCode(97 + x); // 'a' starts at 97
+        const rank = y + 1;
+        const key = `${file}${rank}`;
+        const stones = board.squares[key] || [];
+        squares.push({ x, y, stones });
+      }
+    }
 
-    return { x: isoX, y: isoY };
+    return squares;
   };
 
   const renderSquare = (x: number, y: number, stones: Stone[]) => {
-    const { x: isoX, y: isoY } = getIsometricCoordinates(x, y);
-    const size = squareSize * 0.8;
-
-    const topLeft = { x: isoX - size / 2, y: isoY - size / 4 };
-    const topRight = { x: isoX + size / 2, y: isoY - size / 4 };
-    const bottomRight = { x: isoX + size / 2, y: isoY + size / 4 };
-    const bottomLeft = { x: isoX - size / 2, y: isoY + size / 4 };
-
-    const points = `${topLeft.x},${topLeft.y} ${topRight.x},${topRight.y} ${bottomRight.x},${bottomRight.y} ${bottomLeft.x},${bottomLeft.y}`;
+    const squareX = x * squareSize;
+    const squareY = y * squareSize;
+    const size = squareSize * 0.9;
 
     const canPlacePiece = selectedPieceType && stones.length === 0;
-    const squareColor = canPlacePiece ? "#d2691e" : "#8b4513"; // More visible when selectable
-    const strokeColor = canPlacePiece ? "#ffd700" : "#654321"; // Gold border when selectable
+    const squareColor = canPlacePiece ? "#d2691e" : "#8b4513";
+    const strokeColor = canPlacePiece ? "#ffd700" : "#654321";
+
+    // Add a test piece to the center square if board is empty (for debugging)
+    const showTestPiece = Object.keys(board.squares).length === 0 && x === Math.floor(board.size / 2) && y === Math.floor(board.size / 2);
 
     return (
       <TouchableOpacity
@@ -49,20 +53,30 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
         onPress={() => onSquarePress(x, y)}
       >
         <Polygon
-          points={points}
+          points={`${squareX},${squareY} ${squareX + size},${squareY} ${squareX + size},${squareY + size} ${squareX},${squareY + size}`}
           fill={squareColor}
           stroke={strokeColor}
           strokeWidth={canPlacePiece ? "3" : "1"}
         />
+        {showTestPiece && (
+          <Circle
+            cx={squareX + size / 2}
+            cy={squareY + size / 2}
+            r={size * 0.2}
+            fill="#ff0000"
+            stroke="#000"
+            strokeWidth="2"
+          />
+        )}
         {stones.map((stone, stackIndex) =>
-          renderStone(stone, isoX, isoY - (stackIndex * 6), stackIndex)
+          renderStone(stone, squareX + size / 2, squareY + size / 2, stackIndex)
         )}
       </TouchableOpacity>
     );
   };
 
   const renderStone = (stone: Stone, x: number, y: number, stackIndex: number) => {
-    const pieceSize = squareSize * 0.3;
+    const pieceSize = squareSize * 0.2;
     const color = stone.player === 1 ? '#f8f9fa' : '#2c3e50'; // 1 = white, 2 = black
     const strokeColor = stone.player === 1 ? '#dee2e6' : '#1a252f';
 
@@ -118,52 +132,16 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
     }
   };
 
-  // Convert board.squares object to array of squares with coordinates
-  const getSquaresArray = () => {
-    const squares: { x: number; y: number; stones: Stone[] }[] = [];
-
-    for (let y = 0; y < board.size; y++) {
-      for (let x = 0; x < board.size; x++) {
-        const file = String.fromCharCode(97 + x); // 'a' starts at 97
-        const rank = y + 1;
-        const key = `${file}${rank}`;
-        const stones = board.squares[key] || [];
-        squares.push({ x, y, stones });
-      }
-    }
-
-    return squares;
-  };
-
   return (
     <View style={[styles.container, { width: boardSize, height: boardSize }]}>
       <Svg width={boardSize} height={boardSize} style={styles.svg}>
-        {/* Background isometric grid for debugging */}
-        {Array.from({ length: board.size }, (_, i) => {
-          const { x: isoX1, y: isoY1 } = getIsometricCoordinates(0, i);
-          const { x: isoX2, y: isoY2 } = getIsometricCoordinates(board.size - 1, i);
-          const { x: isoX3, y: isoY3 } = getIsometricCoordinates(i, 0);
-          const { x: isoX4, y: isoY4 } = getIsometricCoordinates(i, board.size - 1);
-
-          return (
-            <React.Fragment key={`grid-${i}`}>
-              {/* Horizontal isometric lines */}
-              <Polygon
-                points={`${isoX1},${isoY1} ${isoX2},${isoY2}`}
-                stroke="#555"
-                strokeWidth="1"
-                fill="none"
-              />
-              {/* Vertical isometric lines */}
-              <Polygon
-                points={`${isoX3},${isoY3} ${isoX4},${isoY4}`}
-                stroke="#555"
-                strokeWidth="1"
-                fill="none"
-              />
-            </React.Fragment>
-          );
-        })}
+        {/* Board border */}
+        <Polygon
+          points={`0,0 ${boardSize},0 ${boardSize},${boardSize} 0,${boardSize}`}
+          fill="none"
+          stroke="#fff"
+          strokeWidth="2"
+        />
 
         {getSquaresArray().map(({ x, y, stones }) =>
           renderSquare(x, y, stones)
@@ -176,10 +154,12 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
 const styles = StyleSheet.create({
   container: {
     alignSelf: 'center',
-    backgroundColor: '#34495e',
+    backgroundColor: '#2c3e50',
     borderRadius: 8,
     padding: 16,
     marginVertical: 16,
+    borderWidth: 2,
+    borderColor: '#34495e',
   },
   svg: {
     backgroundColor: 'transparent',
