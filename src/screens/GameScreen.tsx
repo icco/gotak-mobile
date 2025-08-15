@@ -15,6 +15,7 @@ import { GameState, PieceType } from '../types/game';
 import { gotakAPI } from '../services/api';
 import { IsometricBoard } from '../components/IsometricBoard';
 import { PieceInventory } from '../components/PieceInventory';
+import axios from 'axios';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
@@ -33,18 +34,40 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       setLoading(true);
       const gameId = route.params?.gameId;
-      
+
+      // Test connection first
+      const isConnected = await gotakAPI.testConnection();
+      if (!isConnected) {
+        Alert.alert('Connection Error', 'Cannot connect to the game server. Please check your internet connection and try again.');
+        return;
+      }
+
       let game: GameState;
       if (gameId) {
         game = await gotakAPI.getGame(gameId);
       } else {
         game = await gotakAPI.createGame(5);
       }
-      
+
       setGameState(game);
     } catch (error) {
-      Alert.alert('Error', 'Failed to initialize game');
       console.error('Game initialization error:', error);
+
+      let errorMessage = 'Failed to initialize game';
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        if (status === 404) {
+          errorMessage = 'Game server not found. Please check if the server is running.';
+        } else if (status && status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        } else if (error.code === 'NETWORK_ERROR') {
+          errorMessage = 'Network error. Please check your internet connection.';
+        } else {
+          errorMessage = `Server error: ${status} - ${error.response?.data?.message || error.message}`;
+        }
+      }
+
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -56,7 +79,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleShareGame = async () => {
     if (!gameState) return;
-    
+
     try {
       const gameLink = await gotakAPI.getGameLink(gameState.id);
       await Share.share({
@@ -122,7 +145,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={styles.shareButtonText}>Share</Text>
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.gameInfo}>
         <Text style={styles.currentPlayer}>
           Current Player: {gameState.currentPlayer}
@@ -142,7 +165,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
             }
           }}
         />
-        
+
         <PieceInventory
           pieces={gameState.players.white.pieces}
           color="white"
@@ -150,7 +173,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
             setSelectedPieceType(selectedPieceType === pieceType ? undefined : pieceType);
           }}
         />
-        
+
         {selectedPieceType && (
           <View style={styles.selectedPieceIndicator}>
             <Text style={styles.selectedPieceText}>
