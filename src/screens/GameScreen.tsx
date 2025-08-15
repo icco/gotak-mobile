@@ -98,7 +98,12 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handlePlacePiece = async (x: number, y: number, pieceType: PieceType) => {
-    if (!gameState) return;
+    if (!gameState) {
+      console.log('No game state available');
+      return;
+    }
+
+    console.log('Attempting to place piece:', { x, y, pieceType, selectedPieceType });
 
     try {
       // Convert coordinates to chess notation (e.g., "c3")
@@ -121,6 +126,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       console.log('Making move:', { square, currentPlayer, currentTurn, stoneType });
 
       const updatedGame = await gotakAPI.makeMove(gameState.slug, square, currentPlayer, currentTurn, stoneType);
+      console.log('Move successful, updated game:', updatedGame);
       setGameState(updatedGame);
       setSelectedPieceType(undefined);
     } catch (error) {
@@ -213,7 +219,9 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
             capstone: 1,
           }}
           color="white"
+          selectedPieceType={selectedPieceType}
           onPieceSelect={(pieceType) => {
+            console.log('Piece selected:', pieceType);
             setSelectedPieceType(selectedPieceType === pieceType ? undefined : pieceType);
           }}
         />
