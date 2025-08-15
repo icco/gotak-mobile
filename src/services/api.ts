@@ -37,6 +37,8 @@ class GotakAPI {
 
       // Transform API response to match our expected structure
       const apiData = response.data;
+      
+      // For new games, the board should be empty, so we can use the server's board state
       return {
         id: apiData.ID,
         slug: apiData.Slug,
@@ -62,17 +64,55 @@ class GotakAPI {
     const response = await this.client.get(`/game/${slug}`);
     const apiData = response.data;
 
+    // Reconstruct board state from moves since the server doesn't update it
+    const reconstructedBoard = this.reconstructBoardFromMoves(apiData.Turns || [], apiData.Board.Size);
+    console.log('Reconstructed board in getGame:', reconstructedBoard);
+
     // Transform API response to match our expected structure
     return {
       id: apiData.ID,
       slug: apiData.Slug,
       board: {
         size: apiData.Board.Size,
-        squares: apiData.Board.Squares,
+        squares: reconstructedBoard, // Use reconstructed board instead of empty server board
       },
       turns: apiData.Turns || [],
       meta: apiData.Meta || [],
     };
+  }
+
+  // Helper function to reconstruct board state from moves
+  private reconstructBoardFromMoves(turns: any[], boardSize: number): { [key: string]: any[] } {
+    const board: { [key: string]: any[] } = {};
+    
+    // Initialize empty board
+    for (let y = 1; y <= boardSize; y++) {
+      for (let x = 0; x < boardSize; x++) {
+        const file = String.fromCharCode(97 + x);
+        const square = `${file}${y}`;
+        board[square] = [];
+      }
+    }
+    
+    // Reconstruct board from moves
+    turns.forEach(turn => {
+      if (turn.First) {
+        const square = turn.First.Square;
+        const stoneType = turn.First.Stone === 'F' ? 'flat' : 
+                         turn.First.Stone === 'S' ? 'standing' : 'capstone';
+        const player = 1; // First move is always player 1
+        board[square].push({ player, type: stoneType });
+      }
+      if (turn.Second) {
+        const square = turn.Second.Square;
+        const stoneType = turn.Second.Stone === 'F' ? 'flat' : 
+                         turn.Second.Stone === 'S' ? 'standing' : 'capstone';
+        const player = 2; // Second move is always player 2
+        board[square].push({ player, type: stoneType });
+      }
+    });
+    
+    return board;
   }
 
   async makeMove(slug: string, move: string, player: number, turn: number, stoneType: string = 'flat'): Promise<GameState> {
@@ -94,13 +134,17 @@ class GotakAPI {
     console.log('Raw API response (stringified):', JSON.stringify(response.data, null, 2));
     const apiData = response.data;
 
+    // Reconstruct board state from moves since the server doesn't update it
+    const reconstructedBoard = this.reconstructBoardFromMoves(apiData.Turns || [], apiData.Board.Size);
+    console.log('Reconstructed board:', reconstructedBoard);
+
     // Transform API response to match our expected structure
     const transformedGame = {
       id: apiData.ID,
       slug: apiData.Slug,
       board: {
         size: apiData.Board.Size,
-        squares: apiData.Board.Squares,
+        squares: reconstructedBoard, // Use reconstructed board instead of empty server board
       },
       turns: apiData.Turns || [],
       meta: apiData.Meta || [],
