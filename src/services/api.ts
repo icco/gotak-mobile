@@ -27,10 +27,10 @@ class GotakAPI {
   async createGame(boardSize: number = 5): Promise<GameState> {
     try {
       console.log(`Creating game with board size: ${boardSize}`);
-      console.log(`Making POST request to: ${this.client.defaults.baseURL}/games`);
+      console.log(`Making POST request to: ${this.client.defaults.baseURL}/game/new`);
 
-      const response = await this.client.post('/games', {
-        size: boardSize,
+      const response = await this.client.post('/game/new', {
+        size: boardSize.toString(), // API expects size as string
       });
 
       console.log('Game created successfully:', response.data);
@@ -46,25 +46,27 @@ class GotakAPI {
     }
   }
 
-  async getGame(gameId: string): Promise<GameState> {
-    const response = await this.client.get(`/games/${gameId}`);
+  async getGame(slug: string): Promise<GameState> {
+    const response = await this.client.get(`/game/${slug}`);
     return response.data;
   }
 
-  async makeMove(gameId: string, move: Move): Promise<GameState> {
-    const response = await this.client.post(`/games/${gameId}/moves`, move);
-    return response.data;
-  }
-
-  async joinGame(gameId: string, playerName: string): Promise<GameState> {
-    const response = await this.client.post(`/games/${gameId}/join`, {
-      name: playerName,
+  async makeMove(slug: string, move: string, player: number, turn: number): Promise<GameState> {
+    const response = await this.client.post(`/game/${slug}/move`, {
+      move,
+      player,
+      turn,
     });
     return response.data;
   }
 
-  async getGameLink(gameId: string): Promise<string> {
-    return `${API_CONFIG.BASE_URL}/games/${gameId}`;
+  async getGameAtTurn(slug: string, turn: number): Promise<any> {
+    const response = await this.client.get(`/game/${slug}/${turn}`);
+    return response.data;
+  }
+
+  async getGameLink(slug: string): Promise<string> {
+    return `${API_CONFIG.BASE_URL}/game/${slug}`;
   }
 }
 

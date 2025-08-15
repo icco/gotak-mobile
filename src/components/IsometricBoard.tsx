@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import Svg, { Polygon, Circle } from 'react-native-svg';
-import { Board, Square, Piece, PieceType } from '../types/game';
+import { Board, Stone, PieceType } from '../types/game';
 
 interface Props {
   board: Board;
@@ -24,8 +24,8 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
     return { x: isoX, y: isoY };
   };
 
-  const renderSquare = (square: Square) => {
-    const { x: isoX, y: isoY } = getIsometricCoordinates(square.x, square.y);
+  const renderSquare = (x: number, y: number, stones: Stone[]) => {
+    const { x: isoX, y: isoY } = getIsometricCoordinates(x, y);
     const size = squareSize * 0.8;
     
     const topLeft = { x: isoX - size / 2, y: isoY - size / 4 };
@@ -35,15 +35,15 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
     
     const points = `${topLeft.x},${topLeft.y} ${topRight.x},${topRight.y} ${bottomRight.x},${bottomRight.y} ${bottomLeft.x},${bottomLeft.y}`;
     
-    const canPlacePiece = selectedPieceType && square.pieces.length === 0;
+    const canPlacePiece = selectedPieceType && stones.length === 0;
     const squareColor = canPlacePiece ? "#a0522d" : "#8b4513";
     const strokeColor = canPlacePiece ? "#deb887" : "#654321";
     
     return (
       <TouchableOpacity
-        key={`square-${square.x}-${square.y}`}
+        key={`square-${x}-${y}`}
         style={StyleSheet.absoluteFillObject}
-        onPress={() => onSquarePress(square.x, square.y)}
+        onPress={() => onSquarePress(x, y)}
       >
         <Svg>
           <Polygon
@@ -52,20 +52,20 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
             stroke={strokeColor}
             strokeWidth={canPlacePiece ? "2" : "1"}
           />
-          {square.pieces.map((piece, stackIndex) => 
-            renderPiece(piece, isoX, isoY - (stackIndex * 6), stackIndex)
+          {stones.map((stone, stackIndex) => 
+            renderStone(stone, isoX, isoY - (stackIndex * 6), stackIndex)
           )}
         </Svg>
       </TouchableOpacity>
     );
   };
 
-  const renderPiece = (piece: Piece, x: number, y: number, stackIndex: number) => {
+  const renderStone = (stone: Stone, x: number, y: number, stackIndex: number) => {
     const pieceSize = squareSize * 0.3;
-    const color = piece.color === 'white' ? '#f8f9fa' : '#2c3e50';
-    const strokeColor = piece.color === 'white' ? '#dee2e6' : '#1a252f';
+    const color = stone.player === 1 ? '#f8f9fa' : '#2c3e50'; // 1 = white, 2 = black
+    const strokeColor = stone.player === 1 ? '#dee2e6' : '#1a252f';
     
-    if (piece.type === 'standing') {
+    if (stone.type === 'wall') {
       const height = pieceSize * 1.5;
       const width = pieceSize * 0.6;
       const topLeft = { x: x - width / 2, y: y - height / 2 };
@@ -77,17 +77,17 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
       
       return (
         <Polygon
-          key={`piece-${piece.id}-${stackIndex}`}
+          key={`stone-${stackIndex}`}
           points={points}
           fill={color}
           stroke={strokeColor}
           strokeWidth="1"
         />
       );
-    } else if (piece.type === 'capstone') {
+    } else if (stone.type === 'capstone') {
       return (
         <Circle
-          key={`piece-${piece.id}-${stackIndex}`}
+          key={`stone-${stackIndex}`}
           cx={x}
           cy={y}
           r={pieceSize * 0.6}
@@ -97,9 +97,10 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
         />
       );
     } else {
+      // flat stone
       return (
         <Circle
-          key={`piece-${piece.id}-${stackIndex}`}
+          key={`stone-${stackIndex}`}
           cx={x}
           cy={y}
           r={pieceSize * 0.4}
@@ -111,12 +112,29 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
     }
   };
 
+  // Convert board.squares object to array of squares with coordinates
+  const getSquaresArray = () => {
+    const squares: Array<{ x: number; y: number; stones: Stone[] }> = [];
+    
+    for (let y = 0; y < board.size; y++) {
+      for (let x = 0; x < board.size; x++) {
+        const file = String.fromCharCode(97 + x); // 'a' starts at 97
+        const rank = y + 1;
+        const key = `${file}${rank}`;
+        const stones = board.squares[key] || [];
+        squares.push({ x, y, stones });
+      }
+    }
+    
+    return squares;
+  };
+
   return (
     <View style={[styles.container, { width: boardSize, height: boardSize }]}>
       <Svg width={boardSize} height={boardSize}>
-        {board.squares.flat().map(square => (
-          <React.Fragment key={`square-${square.x}-${square.y}`}>
-            {renderSquare(square)}
+        {getSquaresArray().map(({ x, y, stones }) => (
+          <React.Fragment key={`square-${x}-${y}`}>
+            {renderSquare(x, y, stones)}
           </React.Fragment>
         ))}
       </Svg>

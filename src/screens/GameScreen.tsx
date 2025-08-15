@@ -33,7 +33,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   const initializeGame = useCallback(async () => {
     try {
       setLoading(true);
-      const gameId = route.params?.gameId;
+      const gameSlug = route.params?.gameId;
 
       // Test connection first
       const isConnected = await gotakAPI.testConnection();
@@ -43,8 +43,8 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       }
 
       let game: GameState;
-      if (gameId) {
-        game = await gotakAPI.getGame(gameId);
+      if (gameSlug) {
+        game = await gotakAPI.getGame(gameSlug);
       } else {
         game = await gotakAPI.createGame(5);
       }
@@ -57,7 +57,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
         if (status === 404) {
-          errorMessage = 'Game server not found. Please check if the server is running.';
+          errorMessage = 'Game not found. Please check the game ID.';
         } else if (status && status >= 500) {
           errorMessage = 'Server error. Please try again later.';
         } else if (error.code === 'NETWORK_ERROR') {
@@ -81,7 +81,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     if (!gameState) return;
 
     try {
-      const gameLink = await gotakAPI.getGameLink(gameState.id);
+      const gameLink = await gotakAPI.getGameLink(gameState.slug);
       await Share.share({
         message: `Join my Tak game: ${gameLink}`,
         url: gameLink,
@@ -95,23 +95,43 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     if (!gameState) return;
 
     try {
-      const move = {
-        to: { x, y, stackIndex: 0 },
-        piece: {
-          id: `temp-${crypto.randomUUID()}`,
-          type: pieceType,
-          color: gameState.currentPlayer,
-        },
-        moveType: 'place' as const,
-      };
+      // Convert coordinates to chess notation (e.g., "c3")
+      const file = String.fromCharCode(97 + x); // 'a' starts at 97
+      const rank = y + 1;
+      const square = `${file}${rank}`;
+      
+      // Determine current player (1 for white, 2 for black)
+      const currentTurn = gameState.turns.length + 1;
+      const currentPlayer = currentTurn % 2 === 1 ? 1 : 2;
+      
+      // Determine stone type based on piece type
+      let stoneType = 'flat';
+      if (pieceType === 'standing') stoneType = 'wall';
+      else if (pieceType === 'capstone') stoneType = 'capstone';
 
-      const updatedGame = await gotakAPI.makeMove(gameState.id, move);
+      const updatedGame = await gotakAPI.makeMove(gameState.slug, square, currentPlayer, currentTurn);
       setGameState(updatedGame);
       setSelectedPieceType(undefined);
     } catch (error) {
       Alert.alert('Error', 'Failed to place piece');
       console.error('Place piece error:', error);
     }
+  };
+
+  // Helper function to get current player color
+  const getCurrentPlayerColor = () => {
+    if (!gameState) return 'white';
+    const currentTurn = gameState.turns.length + 1;
+    return currentTurn % 2 === 1 ? 'white' : 'black';
+  };
+
+  // Helper function to get game status
+  const getGameStatus = () => {
+    if (!gameState) return 'loading';
+    if (gameState.turns.length === 0) return 'waiting';
+    const lastTurn = gameState.turns[gameState.turns.length - 1];
+    if (lastTurn.result) return 'finished';
+    return 'active';
   };
 
   if (loading) {
@@ -148,10 +168,13 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
 
       <View style={styles.gameInfo}>
         <Text style={styles.currentPlayer}>
-          Current Player: {gameState.currentPlayer}
+          Current Player: {getCurrentPlayerColor()}
         </Text>
         <Text style={styles.gameStatus}>
-          Status: {gameState.gameStatus}
+          Status: {getGameStatus()}
+        </Text>
+        <Text style={styles.turnInfo}>
+          Turn: {gameState.turns.length + 1}
         </Text>
       </View>
 
@@ -167,7 +190,11 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
         />
 
         <PieceInventory
-          pieces={gameState.players.white.pieces}
+          pieces={{
+            flat: 21, // Default piece counts for 5x5 board
+            standing: 1,
+            capstone: 1,
+          }}
           color="white"
           onPieceSelect={(pieceType) => {
             setSelectedPieceType(selectedPieceType === pieceType ? undefined : pieceType);
@@ -232,6 +259,11 @@ const styles = StyleSheet.create({
   gameStatus: {
     color: '#bdc3c7',
     fontSize: 14,
+  },
+  turnInfo: {
+    color: '#ecf0f1',
+    fontSize: 14,
+    marginTop: 4,
   },
   gameArea: {
     flex: 1,
