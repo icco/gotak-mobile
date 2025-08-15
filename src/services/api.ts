@@ -34,7 +34,19 @@ class GotakAPI {
       });
 
       console.log('Game created successfully:', response.data);
-      return response.data;
+      
+      // Transform API response to match our expected structure
+      const apiData = response.data;
+      return {
+        id: apiData.ID,
+        slug: apiData.Slug,
+        board: {
+          size: apiData.Board.Size,
+          squares: apiData.Board.Squares,
+        },
+        turns: apiData.Turns || [],
+        meta: apiData.Meta || [],
+      };
     } catch (error) {
       console.error('Error creating game:', error);
       if (axios.isAxiosError(error)) {
@@ -48,7 +60,19 @@ class GotakAPI {
 
   async getGame(slug: string): Promise<GameState> {
     const response = await this.client.get(`/game/${slug}`);
-    return response.data;
+    const apiData = response.data;
+    
+    // Transform API response to match our expected structure
+    return {
+      id: apiData.ID,
+      slug: apiData.Slug,
+      board: {
+        size: apiData.Board.Size,
+        squares: apiData.Board.Squares,
+      },
+      turns: apiData.Turns || [],
+      meta: apiData.Meta || [],
+    };
   }
 
   async makeMove(slug: string, move: string, player: number, turn: number): Promise<GameState> {
@@ -57,7 +81,19 @@ class GotakAPI {
       player,
       turn,
     });
-    return response.data;
+    const apiData = response.data;
+    
+    // Transform API response to match our expected structure
+    return {
+      id: apiData.ID,
+      slug: apiData.Slug,
+      board: {
+        size: apiData.Board.Size,
+        squares: apiData.Board.Squares,
+      },
+      turns: apiData.Turns || [],
+      meta: apiData.Meta || [],
+    };
   }
 
   async getGameAtTurn(slug: string, turn: number): Promise<any> {

@@ -101,7 +101,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       const square = `${file}${rank}`;
       
       // Determine current player (1 for white, 2 for black)
-      const currentTurn = gameState.turns.length + 1;
+      const currentTurn = (gameState.turns?.length || 0) + 1;
       const currentPlayer = currentTurn % 2 === 1 ? 1 : 2;
       
       // Determine stone type based on piece type
@@ -121,14 +121,14 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   // Helper function to get current player color
   const getCurrentPlayerColor = () => {
     if (!gameState) return 'white';
-    const currentTurn = gameState.turns.length + 1;
+    const currentTurn = (gameState.turns?.length || 0) + 1;
     return currentTurn % 2 === 1 ? 'white' : 'black';
   };
 
   // Helper function to get game status
   const getGameStatus = () => {
     if (!gameState) return 'loading';
-    if (gameState.turns.length === 0) return 'waiting';
+    if (!gameState.turns || gameState.turns.length === 0) return 'waiting';
     const lastTurn = gameState.turns[gameState.turns.length - 1];
     if (lastTurn.result) return 'finished';
     return 'active';
@@ -174,7 +174,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           Status: {getGameStatus()}
         </Text>
         <Text style={styles.turnInfo}>
-          Turn: {gameState.turns.length + 1}
+          Turn: {(gameState.turns?.length || 0) + 1}
         </Text>
       </View>
 
