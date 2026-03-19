@@ -1,95 +1,109 @@
 name: CI
+
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
   pull_request:
-    branches:
-      - main
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Run TypeScript check
-        run: npx tsc --noEmit
-      - name: Run linter
-        run: npm run lint
-      - name: Run tests
-        run: npm test || echo "No tests configured yet"
-      - name: Check Expo configuration
-        run: npx expo-doctor || echo "Expo doctor check completed"
+    branches: [main]
 
-  build-android:
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '25'
+
+jobs:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
-    needs: test
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
         with:
-          node-version: "18"
-          cache: npm
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          java-version: "17"
-          distribution: temurin
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
+
+      - name: Lint
+        run: yarn lint
+
+      - name: TypeScript
+        run: yarn typecheck
+
+      - name: Test
+        run: yarn test
+
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
       - name: Generate native Android code
         run: npx expo prebuild --platform android --clean
-      - name: Build Android APK
+
+      - name: Build debug APK
         run: |
           cd android
           ./gradlew assembleDebug --no-daemon
-      - name: Upload Android artifact
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
+          name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
 
-  build-ios:
-    runs-on: macos-latest
-    needs: test
+  ios:
+    name: iOS
+    runs-on: macos-15
+    needs: lint
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
         with:
-          node-version: "18"
-          cache: npm
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
+
       - name: Generate native iOS code
         run: npx expo prebuild --platform ios --clean
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-      - name: Install CocoaPods dependencies
+
+      - name: Install CocoaPods
         run: |
           cd ios
           pod install
-      - name: Build iOS app
+
+      - name: Build (simulator)
         run: |
           cd ios
-          xcodebuild -workspace *.xcworkspace -scheme * -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath DerivedData build
-      - name: Upload iOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-app
-          path: ios/DerivedData/Build/Products/Debug-iphonesimulator/*.app
+          xcodebuild -workspace gotak-mobile.xcworkspace -scheme gotak-mobile \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -derivedDataPath build ONLY_ACTIVE_ARCH=NO
