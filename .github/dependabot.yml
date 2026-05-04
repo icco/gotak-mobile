@@ -5,6 +5,24 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    # These versions are pinned by Expo SDK 55 (via `npx expo install`).
+    # Bumping them individually breaks the RN + react + native-module
+    # compatibility matrix that `expo install --check` enforces. They get
+    # bumped together when the project moves to a newer Expo SDK.
+    ignore:
+      - dependency-name: react
+      - dependency-name: react-native
+      - dependency-name: react-native-gesture-handler
+      - dependency-name: react-native-reanimated
+      - dependency-name: react-native-screens
+      - dependency-name: react-native-safe-area-context
+      - dependency-name: react-native-svg
+      - dependency-name: react-native-worklets
+      - dependency-name: expo
+      - dependency-name: expo-*
+      - dependency-name: '@types/react'
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
