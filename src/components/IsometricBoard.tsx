@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Dimensions, Text } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import Svg, { Line } from 'react-native-svg';
 import { Board, Stone, PieceType } from '../types/game';
 
 interface Props {
@@ -74,10 +75,7 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
       >
         <TouchableOpacity
           style={styles.squareTouchable}
-          onPress={() => {
-            console.log('Square pressed:', x, y);
-            onSquarePress(x, y);
-          }}
+          onPress={() => onSquarePress(x, y)}
         />
       </View>
     );
@@ -185,46 +183,23 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
 
   const renderGridLines = () => {
     const lines = [];
+    const stroke = 'rgba(139, 69, 19, 0.6)';
 
-    // Vertical lines
+    // Lines along the y-axis (constant x)
     for (let x = 0; x <= board.size; x++) {
-      const startPos = gridToIsometric(x, 0);
-      const endPos = gridToIsometric(x, board.size);
-
+      const a = gridToIsometric(x - 0.5, -0.5);
+      const b = gridToIsometric(x - 0.5, board.size - 0.5);
       lines.push(
-        <View
-          key={`vline-${x}`}
-          style={{
-            position: 'absolute',
-            left: startPos.x,
-            top: startPos.y,
-            width: 1,
-            height: Math.abs(endPos.y - startPos.y),
-            backgroundColor: 'rgba(139, 69, 19, 0.6)',
-            zIndex: 50,
-          }}
-        />
+        <Line key={`vline-${x}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={stroke} strokeWidth={1} />
       );
     }
 
-    // Horizontal lines
+    // Lines along the x-axis (constant y)
     for (let y = 0; y <= board.size; y++) {
-      const startPos = gridToIsometric(0, y);
-      const endPos = gridToIsometric(board.size, y);
-
+      const a = gridToIsometric(-0.5, y - 0.5);
+      const b = gridToIsometric(board.size - 0.5, y - 0.5);
       lines.push(
-        <View
-          key={`hline-${y}`}
-          style={{
-            position: 'absolute',
-            left: startPos.x,
-            top: startPos.y,
-            width: Math.abs(endPos.x - startPos.x),
-            height: 1,
-            backgroundColor: 'rgba(139, 69, 19, 0.6)',
-            zIndex: 50,
-          }}
-        />
+        <Line key={`hline-${y}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={stroke} strokeWidth={1} />
       );
     }
 
@@ -258,27 +233,22 @@ export const IsometricBoard: React.FC<Props> = ({ board, onSquarePress, selected
       </View>
 
       {/* Grid lines */}
-      {renderGridLines()}
+      <Svg
+        width={boardSize}
+        height={boardSize * 0.8}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      >
+        {renderGridLines()}
+      </Svg>
 
       {/* Squares */}
-      {squares.map(({ x, y, stones }) => {
-        return renderSquare(x, y, stones);
-      })}
+      {squares.map(({ x, y, stones }) => renderSquare(x, y, stones))}
 
       {/* Stones - render on top of squares */}
-      {squares.map(({ x, y, stones }) => {
-        return stones.map((stone, stackIndex) =>
-          renderStone(stone, x, y, stackIndex)
-        );
-      })}
-
-      {/* Debug info */}
-      <View style={styles.debugInfo}>
-        <Text style={styles.debugText}>Board: {board.size}x{board.size}</Text>
-        <Text style={styles.debugText}>Squares: {squares.length}</Text>
-        <Text style={styles.debugText}>Selected: {selectedPieceType || 'none'}</Text>
-        <Text style={styles.debugText}>Pieces: {Object.values(board.squares).flat().length}</Text>
-      </View>
+      {squares.map(({ x, y, stones }) =>
+        stones.map((stone, stackIndex) => renderStone(stone, x, y, stackIndex))
+      )}
     </View>
   );
 };
@@ -311,18 +281,6 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  debugInfo: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    padding: 8,
-    borderRadius: 4,
-  },
-  debugText: {
-    color: '#fff',
-    fontSize: 10,
   },
   stone: {
     justifyContent: 'center',
