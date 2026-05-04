@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
+import { logDebug } from '../utils/logger';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -22,7 +23,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleJoinGame = () => {
     // TODO: Implement join game flow
-    console.log('Join game pressed');
+    logDebug('Join game pressed');
   };
 
   return (

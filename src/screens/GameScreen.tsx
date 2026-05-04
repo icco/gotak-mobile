@@ -16,6 +16,7 @@ import { gotakAPI } from '../services/api';
 import { IsometricBoard } from '../components/IsometricBoard';
 import { PieceInventory } from '../components/PieceInventory';
 import { isAxiosError } from 'axios';
+import { logDebug, logException } from '../utils/logger';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
@@ -49,22 +50,18 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
         game = await gotakAPI.createGame(5);
       }
 
-      // Debug logging to see the board structure
-      console.log('Game loaded:', game);
-      console.log('Board size:', game.board.size);
-      console.log('Board squares:', game.board.squares);
-      console.log('Sample square data:', Object.entries(game.board.squares).slice(0, 3));
-
-      // Log the actual content of squares to see stone structure
-      Object.entries(game.board.squares).forEach(([key, stones]) => {
-        if (stones.length > 0) {
-          console.log(`Square ${key} has ${stones.length} stones:`, stones);
-        }
+      logDebug('Game loaded', {
+        slug: game.slug,
+        boardSize: game.board.size,
+        squareCount: Object.keys(game.board.squares).length,
+        turnCount: game.turns?.length ?? 0,
       });
 
       setGameState(game);
     } catch (error) {
-      console.error('Game initialization error:', error);
+      logException(error instanceof Error ? error : new Error(String(error)), {
+        method: 'initializeGame',
+      });
 
       let errorMessage = 'Failed to initialize game';
       if (isAxiosError(error)) {
@@ -100,38 +97,27 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
         url: gameLink,
       });
     } catch (error) {
-      console.error('Share error:', error);
+      logException(error instanceof Error ? error : new Error(String(error)), {
+        method: 'handleShareGame',
+      });
     }
   };
 
   const handlePlacePiece = async (x: number, y: number, pieceType: PieceType) => {
     if (!gameState) {
-      console.log('No game state available');
+      logDebug('handlePlacePiece called with no game state');
       return;
     }
 
-    console.log('Attempting to place piece:', { x, y, pieceType, selectedPieceType });
-
     try {
-      // Convert coordinates to chess notation (e.g., "c3")
-      const file = String.fromCharCode(97 + x); // 'a' starts at 97
+      // Convert grid coordinates to Tak square notation (e.g., "c3").
+      const file = String.fromCharCode(97 + x);
       const rank = y + 1;
       const square = `${file}${rank}`;
 
-      console.log('Coordinate conversion:', { x, y, file, rank, square });
-      console.log('Expected square mapping:', {
-        '0,0': 'a1', '1,0': 'b1', '2,0': 'c1', '3,0': 'd1', '4,0': 'e1',
-        '0,1': 'a2', '1,1': 'b2', '2,1': 'c2', '3,1': 'd2', '4,1': 'e2',
-        '0,2': 'a3', '1,2': 'b3', '2,2': 'c3', '3,2': 'd3', '4,2': 'e3',
-        '0,3': 'a4', '1,3': 'b4', '2,3': 'c4', '3,3': 'd4', '4,3': 'e4',
-        '0,4': 'a5', '1,4': 'b5', '2,4': 'c5', '3,4': 'd5', '4,4': 'e5',
-      });
-
-      // Determine current player (1 for white, 2 for black)
       const currentTurn = (gameState.turns?.length || 0) + 1;
       const currentPlayer = currentTurn % 2 === 1 ? 1 : 2;
 
-      // Convert piece type to API format
       let stoneType = 'flat';
       if (pieceType === 'standing') {
         stoneType = 'wall';
@@ -139,38 +125,35 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
         stoneType = 'capstone';
       }
 
-      console.log('Making move:', { square, currentPlayer, currentTurn, stoneType });
+      logDebug('Placing piece', { square, currentPlayer, currentTurn, stoneType, pieceType });
 
-      const updatedGame = await gotakAPI.makeMove(gameState.slug, square, currentPlayer, currentTurn, stoneType);
-      console.log('Move successful, updated game:', updatedGame);
-      console.log('Updated board squares:', updatedGame.board.squares);
-      console.log('Square that should have a piece:', square);
-      console.log('Content of that square:', updatedGame.board.squares[square]);
-
-      // Log all non-empty squares
-      Object.entries(updatedGame.board.squares).forEach(([key, stones]) => {
-        if (stones.length > 0) {
-          console.log(`Square ${key} has ${stones.length} stones:`, stones);
-        }
-      });
+      const updatedGame = await gotakAPI.makeMove(
+        gameState.slug,
+        square,
+        currentPlayer,
+        currentTurn,
+        stoneType,
+      );
 
       setGameState(updatedGame);
       setSelectedPieceType(undefined);
 
-      // Try refreshing the game state after a short delay to see if the board updates
+      // Server occasionally lags writing the move; refetch shortly after to settle state.
       setTimeout(async () => {
         try {
-          console.log('Refreshing game state after move...');
           const refreshedGame = await gotakAPI.getGame(gameState.slug);
-          console.log('Refreshed game state:', refreshedGame);
-          console.log('Refreshed board squares:', refreshedGame.board.squares);
           setGameState(refreshedGame);
         } catch (error) {
-          console.error('Error refreshing game state:', error);
+          logException(error instanceof Error ? error : new Error(String(error)), {
+            method: 'refreshGameAfterMove',
+            slug: gameState.slug,
+          });
         }
       }, 1000);
     } catch (error) {
-      console.error('Place piece error:', error);
+      logException(error instanceof Error ? error : new Error(String(error)), {
+        method: 'handlePlacePiece',
+      });
       Alert.alert('Error', 'Failed to place piece. Please try again.');
     }
   };
@@ -261,7 +244,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           color="white"
           selectedPieceType={selectedPieceType}
           onPieceSelect={(pieceType) => {
-            console.log('Piece selected:', pieceType);
+            logDebug('Piece selected', { pieceType });
             setSelectedPieceType(selectedPieceType === pieceType ? undefined : pieceType);
           }}
         />
