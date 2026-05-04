@@ -1,10 +1,23 @@
+# CI Workflow — runs on pushes to main/develop, all pull requests, and manual dispatch.
+#
+# This is an Expo project: native android/ios directories are generated on the fly
+# via `expo prebuild` rather than being checked in.
+#
+# Primary validation path when contributors cannot build locally:
+# lint + typecheck + tests, Android debug APK build, iOS simulator compile.
+# Download artifacts from the workflow run summary.
+
 name: CI
 
 on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -18,6 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -43,6 +58,8 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -57,7 +74,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
@@ -71,10 +88,11 @@ jobs:
           ./gradlew assembleDebug --no-daemon
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 21
 
   ios:
     name: iOS
@@ -86,6 +104,8 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v6
