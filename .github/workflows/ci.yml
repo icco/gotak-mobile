@@ -103,7 +103,7 @@ jobs:
       - name: Build (simulator)
         run: |
           cd ios
-          xcodebuild -workspace gotak-mobile.xcworkspace -scheme gotak-mobile \
+          xcodebuild -workspace gotakmobile.xcworkspace -scheme gotakmobile \
             -configuration Debug -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16' \
             -derivedDataPath build ONLY_ACTIVE_ARCH=NO
