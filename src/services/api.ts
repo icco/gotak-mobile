@@ -1,121 +1,102 @@
 import axios, { isAxiosError } from 'axios';
-import { GameState } from '../types/game';
+import type { AxiosInstance } from 'axios';
 import { API_CONFIG } from '../config/api';
+import { AuthResponse, AuthUser, GameMode, GameState } from '../types/game';
 import { logDebug, logError, logException } from '../utils/logger';
 
+type UnauthorizedHandler = () => void;
+
 class GotakAPI {
-  private client = axios.create({
-    baseURL: API_CONFIG.BASE_URL,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    timeout: API_CONFIG.TIMEOUT,
-  });
+  private client: AxiosInstance;
+  private token: string | null = null;
+  private onUnauthorized: UnauthorizedHandler | null = null;
+
+  constructor() {
+    // eslint-disable-next-line import/no-named-as-default-member -- axios.create is the documented factory
+    this.client = axios.create({
+      baseURL: API_CONFIG.BASE_URL,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      timeout: API_CONFIG.TIMEOUT,
+    });
+
+    this.client.interceptors.request.use((config) => {
+      if (this.token) {
+        config.headers.Authorization = `Bearer ${this.token}`;
+      }
+      return config;
+    });
+
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (isAxiosError(error) && error.response?.status === 401) {
+          this.onUnauthorized?.();
+        }
+        return Promise.reject(error);
+      },
+    );
+  }
+
+  setToken(token: string | null) {
+    this.token = token;
+  }
+
+  setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
+    this.onUnauthorized = handler;
+  }
 
   async testConnection(): Promise<boolean> {
     try {
-      logDebug('Testing connection', { baseUrl: API_CONFIG.BASE_URL });
-      const response = await this.client.get('/');
-      logDebug('Server is reachable', { status: response.status });
-      return true;
+      const response = await this.client.get('/healthz');
+      return response.status === 200;
     } catch (error) {
-      logException(
-        error instanceof Error ? error : new Error(String(error)),
-        { method: 'testConnection' },
-      );
+      logException(error instanceof Error ? error : new Error(String(error)), {
+        method: 'testConnection',
+      });
       return false;
     }
   }
 
-  async createGame(boardSize: number = 5): Promise<GameState> {
-    try {
-      logDebug('Creating game', { boardSize });
-      const response = await this.client.post('/game/new', {
-        // API expects size as string
-        size: boardSize.toString(),
-      });
-      const apiData = response.data;
-      logDebug('Game created', { id: apiData.ID, slug: apiData.Slug });
+  async register(email: string, password: string, name: string): Promise<void> {
+    await this.client.post('/auth/register', { email, password, name });
+  }
 
-      // For new games the board is empty so we trust the server's state.
-      return {
-        id: apiData.ID,
-        slug: apiData.Slug,
-        board: {
-          size: apiData.Board.Size,
-          squares: apiData.Board.Squares,
-        },
-        turns: apiData.Turns || [],
-        meta: apiData.Meta || [],
-      };
-    } catch (error) {
-      if (isAxiosError(error)) {
-        logError('Error creating game', {
-          status: error.response?.status,
-          code: error.code,
-          message: error.message,
-        });
-      } else {
-        logException(error instanceof Error ? error : new Error(String(error)), {
-          method: 'createGame',
-        });
-      }
-      throw error;
-    }
+  async login(email: string, password: string): Promise<AuthResponse> {
+    const response = await this.client.post<AuthResponse>('/auth/login', {
+      email,
+      password,
+    });
+    return {
+      token: response.data.token,
+      user: this.normalizeUser(response.data.user),
+    };
+  }
+
+  async getProfile(): Promise<AuthUser> {
+    const response = await this.client.get('/auth/profile');
+    return this.normalizeUser(response.data);
+  }
+
+  async createGame(boardSize: number, mode: GameMode = 'human'): Promise<GameState> {
+    logDebug('Creating game', { boardSize, mode });
+    const response = await this.client.post(
+      '/game/new',
+      { size: boardSize.toString(), mode },
+      { headers: { Accept: 'application/json' } },
+    );
+    return this.normalizeGame(response.data);
+  }
+
+  async joinGame(slug: string): Promise<void> {
+    await this.client.post(`/game/${slug}/join`);
   }
 
   async getGame(slug: string): Promise<GameState> {
     const response = await this.client.get(`/game/${slug}`);
-    const apiData = response.data;
-
-    // Server stores moves but does not maintain board state, so reconstruct.
-    const reconstructedBoard = this.reconstructBoardFromMoves(
-      apiData.Turns || [],
-      apiData.Board.Size,
-    );
-    logDebug('Reconstructed board in getGame', { slug, size: apiData.Board.Size });
-
-    return {
-      id: apiData.ID,
-      slug: apiData.Slug,
-      board: {
-        size: apiData.Board.Size,
-        squares: reconstructedBoard,
-      },
-      turns: apiData.Turns || [],
-      meta: apiData.Meta || [],
-    };
-  }
-
-  private reconstructBoardFromMoves(turns: any[], boardSize: number): { [key: string]: any[] } {
-    const board: { [key: string]: any[] } = {};
-
-    for (let y = 1; y <= boardSize; y++) {
-      for (let x = 0; x < boardSize; x++) {
-        const file = String.fromCharCode(97 + x);
-        const square = `${file}${y}`;
-        board[square] = [];
-      }
-    }
-
-    turns.forEach((turn) => {
-      if (turn.First) {
-        const square = turn.First.Square;
-        const stoneType =
-          turn.First.Stone === 'F' ? 'flat' : turn.First.Stone === 'S' ? 'standing' : 'capstone';
-        const player = 1;
-        board[square].push({ player, type: stoneType });
-      }
-      if (turn.Second) {
-        const square = turn.Second.Square;
-        const stoneType =
-          turn.Second.Stone === 'F' ? 'flat' : turn.Second.Stone === 'S' ? 'standing' : 'capstone';
-        const player = 2;
-        board[square].push({ player, type: stoneType });
-      }
-    });
-
-    return board;
+    return this.normalizeGame(response.data);
   }
 
   async makeMove(
@@ -123,45 +104,80 @@ class GotakAPI {
     move: string,
     player: number,
     turn: number,
-    stoneType: string = 'flat',
   ): Promise<GameState> {
-    logDebug('Making move', { slug, move, player, turn, stoneType });
-
-    // Per gotak server docs the request only carries the square and player.
-    // Stone type is derived server-side from game logic.
-    const moveData = {
+    logDebug('Making move', { slug, move, player, turn });
+    const response = await this.client.post(`/game/${slug}/move`, {
       player,
       move,
       turn,
+    });
+    return this.normalizeGame(response.data);
+  }
+
+  async requestAiMove(
+    slug: string,
+    level = 'intermediate',
+    style = 'balanced',
+    timeLimitNs = 10_000_000_000,
+  ): Promise<GameState> {
+    const response = await this.client.post(`/game/${slug}/ai-move`, {
+      level,
+      style,
+      time_limit: timeLimitNs,
+    });
+    return this.normalizeGame(response.data);
+  }
+
+  getGameLink(slug: string): string {
+    return `${API_CONFIG.BASE_URL}/game/${slug}`;
+  }
+
+  private normalizeUser(raw: any): AuthUser {
+    return {
+      id: raw.id ?? raw.ID,
+      email: raw.email ?? raw.Email ?? '',
+      name: raw.name ?? raw.Name ?? '',
     };
+  }
 
-    const response = await this.client.post(`/game/${slug}/move`, moveData);
-    const apiData = response.data;
+  private normalizeGame(raw: any): GameState {
+    if (!raw) {
+      throw new Error('empty game response');
+    }
 
-    const reconstructedBoard = this.reconstructBoardFromMoves(
-      apiData.Turns || [],
-      apiData.Board.Size,
-    );
+    const board = raw.Board ?? raw.board;
+    if (!board) {
+      throw new Error('game response missing board');
+    }
 
     return {
-      id: apiData.ID,
-      slug: apiData.Slug,
-      board: {
-        size: apiData.Board.Size,
-        squares: reconstructedBoard,
+      ID: raw.ID ?? raw.id,
+      Slug: raw.Slug ?? raw.slug,
+      Board: {
+        Size: board.Size ?? board.size,
+        Squares: board.Squares ?? board.squares ?? {},
       },
-      turns: apiData.Turns || [],
-      meta: apiData.Meta || [],
+      Turns: raw.Turns ?? raw.turns ?? [],
+      Meta: raw.Meta ?? raw.meta ?? [],
+      current_player: raw.current_player ?? 1,
+      status: raw.status ?? 'waiting',
+      winner: raw.winner ?? 0,
+      white_player_id: raw.white_player_id,
+      black_player_id: raw.black_player_id,
+      mode: (raw.mode as GameMode) || 'human',
     };
   }
 
-  async getGameAtTurn(slug: string, turn: number): Promise<any> {
-    const response = await this.client.get(`/game/${slug}/${turn}`);
-    return response.data;
-  }
-
-  async getGameLink(slug: string): Promise<string> {
-    return `${API_CONFIG.BASE_URL}/game/${slug}`;
+  formatError(error: unknown, fallback: string): string {
+    if (isAxiosError(error)) {
+      const data = error.response?.data as { error?: string; message?: string } | undefined;
+      return data?.error || data?.message || error.message || fallback;
+    }
+    if (error instanceof Error) {
+      return error.message;
+    }
+    logError(fallback, { error: String(error) });
+    return fallback;
   }
 }
 
