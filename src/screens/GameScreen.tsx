@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,31 @@ import {
   Alert,
   TouchableOpacity,
   Share,
+  AppState,
+  ActivityIndicator,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
-import { GameState, PieceType } from '../types/game';
+import {
+  GameState,
+  PieceType,
+  normalizeBoard,
+  remainingPieces,
+  UIBoard,
+} from '../types/game';
 import { gotakAPI } from '../services/api';
 import { IsometricBoard } from '../components/IsometricBoard';
 import { PieceInventory } from '../components/PieceInventory';
-import { isAxiosError } from 'axios';
-import { logDebug, logException } from '../utils/logger';
+import { useAuth } from '../context/AuthContext';
+import {
+  buildPlacementPtn,
+  buildStackSlidePtn,
+  coordsToSquare,
+  directionBetween,
+  isAdjacent,
+} from '../utils/ptn';
+import { logException } from '../utils/logger';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
@@ -27,74 +42,197 @@ interface Props {
 }
 
 export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { user } = useAuth();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedPieceType, setSelectedPieceType] = useState<PieceType | undefined>(undefined);
+  const [selectedPieceType, setSelectedPieceType] = useState<PieceType | undefined>();
+  const [selectedStack, setSelectedStack] = useState<string | null>(null);
+  const [stackCount, setStackCount] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const appActive = useRef(true);
+  const requestingAi = useRef(false);
 
-  const initializeGame = useCallback(async () => {
+  const board: UIBoard | null = useMemo(
+    () => (gameState ? normalizeBoard(gameState.Board) : null),
+    [gameState],
+  );
+
+  const myPlayer = useMemo(() => {
+    if (!gameState || !user) return null;
+    if (gameState.white_player_id === user.id) return 1;
+    if (gameState.black_player_id === user.id) return 2;
+    // AI games: creator is white and black_player_id is unset
+    if (gameState.mode === 'ai' && gameState.white_player_id === user.id) return 1;
+    return null;
+  }, [gameState, user]);
+
+  const currentTurnNumber = useMemo(() => {
+    if (!gameState?.Turns?.length) return 1;
+    const last = gameState.Turns[gameState.Turns.length - 1];
+    if (last.First && !last.Second) return last.Number;
+    return last.Number + 1;
+  }, [gameState]);
+
+  const canAct =
+    !!gameState &&
+    !!myPlayer &&
+    gameState.status !== 'finished' &&
+    gameState.current_player === myPlayer &&
+    (gameState.mode === 'ai' || gameState.status === 'active');
+
+  const inventory = useMemo(() => {
+    if (!board || !myPlayer) {
+      return { flat: 0, standing: 0, capstone: 0 };
+    }
+    return remainingPieces(board, myPlayer);
+  }, [board, myPlayer]);
+
+  const loadGame = useCallback(async () => {
+    const slug = route.params?.gameId;
+    if (!slug) {
+      Alert.alert('Error', 'Missing game id');
+      navigation.goBack();
+      return;
+    }
     try {
-      setLoading(true);
-      const gameSlug = route.params?.gameId;
-
-      // Test connection first
-      const isConnected = await gotakAPI.testConnection();
-      if (!isConnected) {
-        Alert.alert('Connection Error', 'Cannot connect to the game server. Please check your internet connection and try again.');
-        return;
-      }
-
-      let game: GameState;
-      if (gameSlug) {
-        game = await gotakAPI.getGame(gameSlug);
-      } else {
-        game = await gotakAPI.createGame(5);
-      }
-
-      logDebug('Game loaded', {
-        slug: game.slug,
-        boardSize: game.board.size,
-        squareCount: Object.keys(game.board.squares).length,
-        turnCount: game.turns?.length ?? 0,
-      });
-
+      const game = await gotakAPI.getGame(slug);
       setGameState(game);
     } catch (error) {
       logException(error instanceof Error ? error : new Error(String(error)), {
-        method: 'initializeGame',
+        method: 'loadGame',
       });
-
-      let errorMessage = 'Failed to initialize game';
-      if (isAxiosError(error)) {
-        const status = error.response?.status;
-        if (status === 404) {
-          errorMessage = 'Game not found. Please check the game ID.';
-        } else if (status && status >= 500) {
-          errorMessage = 'Server error. Please try again later.';
-        } else if (error.code === 'NETWORK_ERROR') {
-          errorMessage = 'Network error. Please check your internet connection.';
-        } else {
-          errorMessage = `Server error: ${status} - ${error.response?.data?.message || error.message}`;
-        }
-      }
-
-      Alert.alert('Error', errorMessage);
+      Alert.alert('Error', gotakAPI.formatError(error, 'Failed to load game'));
     } finally {
       setLoading(false);
     }
-  }, [route.params?.gameId]);
+  }, [navigation, route.params?.gameId]);
 
   useEffect(() => {
-    initializeGame();
-  }, [initializeGame]);
+    void loadGame();
+  }, [loadGame]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      appActive.current = next === 'active';
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Poll for opponent moves in human games
+  useEffect(() => {
+    if (!gameState || gameState.mode !== 'human') return;
+    if (gameState.status === 'finished') return;
+
+    const waitingForOpponent =
+      gameState.status === 'waiting' ||
+      (myPlayer != null && gameState.current_player !== myPlayer);
+
+    if (!waitingForOpponent) return;
+
+    const id = setInterval(() => {
+      if (!appActive.current) return;
+      void gotakAPI
+        .getGame(gameState.Slug)
+        .then(setGameState)
+        .catch((error) => {
+          logException(error instanceof Error ? error : new Error(String(error)), {
+            method: 'pollGame',
+          });
+        });
+    }, 2000);
+
+    return () => clearInterval(id);
+  }, [gameState, myPlayer]);
+
+  // Trigger AI move when it's the AI's turn
+  useEffect(() => {
+    if (!gameState || gameState.mode !== 'ai') return;
+    if (gameState.status === 'finished') return;
+    if (!myPlayer) return;
+    if (gameState.current_player === myPlayer) return;
+    if (requestingAi.current) return;
+
+    requestingAi.current = true;
+    void gotakAPI
+      .requestAiMove(gameState.Slug)
+      .then((updated) => setGameState(updated))
+      .catch((error) => {
+        Alert.alert('AI Error', gotakAPI.formatError(error, 'AI move failed'));
+      })
+      .finally(() => {
+        requestingAi.current = false;
+      });
+  }, [gameState, myPlayer]);
+
+  const submitMove = async (ptn: string) => {
+    if (!gameState || !myPlayer) return;
+    setBusy(true);
+    try {
+      const updated = await gotakAPI.makeMove(
+        gameState.Slug,
+        ptn,
+        myPlayer,
+        currentTurnNumber,
+      );
+      setGameState(updated);
+      setSelectedPieceType(undefined);
+      setSelectedStack(null);
+      setStackCount(1);
+    } catch (error) {
+      Alert.alert('Invalid move', gotakAPI.formatError(error, 'Move rejected'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSquarePress = (x: number, y: number) => {
+    if (!board || !gameState || !myPlayer || !canAct || busy) return;
+    const square = coordsToSquare(x, y);
+    const stones = board.squares[square] || [];
+
+    // Placement
+    if (selectedPieceType) {
+      if (stones.length > 0) {
+        Alert.alert('Occupied', 'Choose an empty square to place a piece.');
+        return;
+      }
+      void submitMove(buildPlacementPtn(square, selectedPieceType));
+      return;
+    }
+
+    // Stack selection / slide
+    if (selectedStack) {
+      if (selectedStack === square) {
+        setSelectedStack(null);
+        return;
+      }
+      if (!isAdjacent(selectedStack, square)) {
+        Alert.alert('Stack move', 'Tap an orthogonally adjacent square.');
+        return;
+      }
+      const dir = directionBetween(selectedStack, square);
+      if (!dir) return;
+      void submitMove(buildStackSlidePtn(selectedStack, dir, stackCount));
+      return;
+    }
+
+    // Select own stack (top stone must be ours)
+    if (stones.length === 0) return;
+    const top = stones[stones.length - 1];
+    if (top.player !== myPlayer) return;
+    const maxCarry = Math.min(stones.length, board.size);
+    setSelectedStack(square);
+    setStackCount(maxCarry);
+    setSelectedPieceType(undefined);
+  };
 
   const handleShareGame = async () => {
     if (!gameState) return;
-
     try {
-      const gameLink = await gotakAPI.getGameLink(gameState.slug);
+      const link = gotakAPI.getGameLink(gameState.Slug);
       await Share.share({
-        message: `Join my Tak game: ${gameLink}`,
-        url: gameLink,
+        message: `Join my Tak game (${gameState.Slug}): ${link}`,
+        url: link,
       });
     } catch (error) {
       logException(error instanceof Error ? error : new Error(String(error)), {
@@ -103,166 +241,114 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
-  const handlePlacePiece = async (x: number, y: number, pieceType: PieceType) => {
-    if (!gameState) {
-      logDebug('handlePlacePiece called with no game state');
-      return;
-    }
-
-    try {
-      // Convert grid coordinates to Tak square notation (e.g., "c3").
-      const file = String.fromCharCode(97 + x);
-      const rank = y + 1;
-      const square = `${file}${rank}`;
-
-      const currentTurn = (gameState.turns?.length || 0) + 1;
-      const currentPlayer = currentTurn % 2 === 1 ? 1 : 2;
-
-      let stoneType = 'flat';
-      if (pieceType === 'standing') {
-        stoneType = 'wall';
-      } else if (pieceType === 'capstone') {
-        stoneType = 'capstone';
-      }
-
-      logDebug('Placing piece', { square, currentPlayer, currentTurn, stoneType, pieceType });
-
-      const updatedGame = await gotakAPI.makeMove(
-        gameState.slug,
-        square,
-        currentPlayer,
-        currentTurn,
-        stoneType,
-      );
-
-      setGameState(updatedGame);
-      setSelectedPieceType(undefined);
-
-      // Server occasionally lags writing the move; refetch shortly after to settle state.
-      setTimeout(async () => {
-        try {
-          const refreshedGame = await gotakAPI.getGame(gameState.slug);
-          setGameState(refreshedGame);
-        } catch (error) {
-          logException(error instanceof Error ? error : new Error(String(error)), {
-            method: 'refreshGameAfterMove',
-            slug: gameState.slug,
-          });
-        }
-      }, 1000);
-    } catch (error) {
-      logException(error instanceof Error ? error : new Error(String(error)), {
-        method: 'handlePlacePiece',
-      });
-      Alert.alert('Error', 'Failed to place piece. Please try again.');
-    }
-  };
-
-  // Helper function to get current player color
-  const getCurrentPlayerColor = () => {
-    if (!gameState) return 'white';
-    const currentTurn = (gameState.turns?.length || 0) + 1;
-    return currentTurn % 2 === 1 ? 'white' : 'black';
-  };
-
-  // Helper function to get game status
-  const getGameStatus = () => {
-    if (!gameState) return 'loading';
-    if (!gameState.turns || gameState.turns.length === 0) return 'waiting';
-    const lastTurn = gameState.turns[gameState.turns.length - 1];
-    if (lastTurn.result) return 'finished';
-    return 'active';
-  };
-
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
+        <View style={styles.centered}>
+          <ActivityIndicator color="#fff" size="large" />
           <Text style={styles.loadingText}>Loading game...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  if (!gameState) {
+  if (!gameState || !board) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Failed to load game</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={initializeGame}>
-            <Text style={styles.retryButtonText}>Retry</Text>
+        <View style={styles.centered}>
+          <Text style={styles.loadingText}>Failed to load game</Text>
+          <TouchableOpacity style={styles.shareButton} onPress={() => void loadGame()}>
+            <Text style={styles.shareButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
+  const statusLabel =
+    gameState.status === 'finished'
+      ? `Finished — winner: ${gameState.winner === 1 ? 'White' : gameState.winner === 2 ? 'Black' : 'draw/flat'}`
+      : gameState.status === 'waiting'
+        ? 'Waiting for opponent'
+        : canAct
+          ? 'Your turn'
+          : 'Opponent turn';
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.gameTitle}>Tak Game</Text>
-        <TouchableOpacity style={styles.shareButton} onPress={handleShareGame}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.gameTitle}>{gameState.Slug}</Text>
+        <TouchableOpacity style={styles.shareButton} onPress={() => void handleShareGame()}>
           <Text style={styles.shareButtonText}>Share</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.gameInfo}>
-        <Text style={styles.currentPlayer}>
-          Current Player: {getCurrentPlayerColor()}
+        <Text style={styles.infoText}>{statusLabel}</Text>
+        <Text style={styles.infoText}>
+          Mode: {gameState.mode} · You: {myPlayer === 1 ? 'White' : myPlayer === 2 ? 'Black' : '?'}
         </Text>
-        <Text style={styles.gameStatus}>
-          Status: {getGameStatus()}
+        <Text style={styles.infoText}>
+          Turn {currentTurnNumber} · To move: {gameState.current_player === 1 ? 'White' : 'Black'}
         </Text>
-        <Text style={styles.turnInfo}>
-          Turn: {(gameState.turns?.length || 0) + 1}
-        </Text>
-        <Text style={styles.debugInfo}>
-          Board Size: {gameState.board.size} | Squares: {Object.keys(gameState.board.squares).length}
-        </Text>
-        <Text style={styles.debugInfo}>
-          Sample Squares: {Object.keys(gameState.board.squares).slice(0, 3).join(', ')}
-        </Text>
+        {selectedStack ? (
+          <View style={styles.stackControls}>
+            <Text style={styles.infoText}>Moving {stackCount} from {selectedStack}</Text>
+            <View style={styles.stackButtons}>
+              <TouchableOpacity
+                style={styles.tinyButton}
+                onPress={() => setStackCount((c) => Math.max(1, c - 1))}
+              >
+                <Text style={styles.tinyButtonText}>-</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.tinyButton}
+                onPress={() => {
+                  const stones = board.squares[selectedStack] || [];
+                  const maxCarry = Math.min(stones.length, board.size);
+                  setStackCount((c) => Math.min(maxCarry, c + 1));
+                }}
+              >
+                <Text style={styles.tinyButtonText}>+</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.tinyButton}
+                onPress={() => setSelectedStack(null)}
+              >
+                <Text style={styles.tinyButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.gameArea}>
         <IsometricBoard
-          board={gameState.board}
+          board={board}
           selectedPieceType={selectedPieceType}
-          onSquarePress={(x, y) => {
-            if (selectedPieceType) {
-              handlePlacePiece(x, y, selectedPieceType);
-            }
-          }}
+          selectedSquare={selectedStack ?? undefined}
+          onSquarePress={handleSquarePress}
         />
 
         <PieceInventory
-          pieces={{
-            flat: 21, // Default piece counts for 5x5 board
-            standing: 1,
-            capstone: 1,
-          }}
-          color="white"
+          pieces={inventory}
+          color={myPlayer === 2 ? 'black' : 'white'}
           selectedPieceType={selectedPieceType}
-          onPieceSelect={(pieceType) => {
-            logDebug('Piece selected', { pieceType });
-            setSelectedPieceType(selectedPieceType === pieceType ? undefined : pieceType);
+          onPieceSelect={(type) => {
+            setSelectedPieceType(type);
+            setSelectedStack(null);
           }}
         />
-
-        {selectedPieceType && (
-          <View style={styles.selectedPieceIndicator}>
-            <Text style={styles.selectedPieceText}>
-              Selected: {selectedPieceType} piece
-            </Text>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setSelectedPieceType(undefined)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
+
+      {busy ? (
+        <View style={styles.busyOverlay}>
+          <ActivityIndicator color="#fff" />
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 };
@@ -272,22 +358,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#2c3e50',
   },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#ecf0f1',
+    marginTop: 12,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#34495e',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backText: {
+    color: '#3498db',
+    fontSize: 16,
   },
   gameTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
     color: '#ecf0f1',
+    fontSize: 16,
+    fontWeight: '600',
+    maxWidth: '50%',
   },
   shareButton: {
     backgroundColor: '#3498db',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
   },
@@ -296,85 +395,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   gameInfo: {
-    padding: 16,
-    backgroundColor: '#34495e',
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
-  currentPlayer: {
-    color: '#ecf0f1',
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  gameStatus: {
+  infoText: {
     color: '#bdc3c7',
-    fontSize: 14,
-  },
-  turnInfo: {
-    color: '#ecf0f1',
-    fontSize: 14,
-    marginTop: 4,
+    marginBottom: 4,
   },
   gameArea: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 8,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  stackControls: {
+    marginTop: 8,
   },
-  loadingText: {
-    color: '#ecf0f1',
-    fontSize: 18,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    color: '#e74c3c',
-    fontSize: 18,
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#3498db',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  selectedPieceIndicator: {
-    backgroundColor: '#34495e',
+  stackButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    marginTop: 16,
-    borderRadius: 8,
-  },
-  selectedPieceText: {
-    color: '#ecf0f1',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cancelButton: {
-    backgroundColor: '#e74c3c',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  cancelButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  debugInfo: {
-    color: '#95a5a6',
-    fontSize: 12,
     marginTop: 4,
+  },
+  tinyButton: {
+    backgroundColor: '#34495e',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  tinyButtonText: {
+    color: '#ecf0f1',
+  },
+  busyOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
