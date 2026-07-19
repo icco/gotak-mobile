@@ -108,6 +108,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [navigation, route.params?.gameId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch; setState runs after await, not synchronously
     void loadGame();
   }, [loadGame]);
 
