@@ -1,0 +1,28 @@
+android {
+    signingConfigs {
+        release {
+            def keystorePath = System.getenv('ANDROID_KEYSTORE_PATH')
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storePassword System.getenv('ANDROID_STORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes.release.signingConfig = signingConfigs.release
+}
+
+// Check the resolved graph, including release tasks selected by aggregate tasks.
+gradle.taskGraph.whenReady { graph ->
+    if (graph.allTasks.any { it.project == project && it.name.toLowerCase().contains('release') }) {
+        def required = ['ANDROID_KEYSTORE_PATH', 'ANDROID_STORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD']
+        def missing = required.findAll { !System.getenv(it) }
+        if (!missing.isEmpty()) {
+            throw new GradleException('Release signing requires: ' + missing.join(', '))
+        }
+        if (!file(System.getenv('ANDROID_KEYSTORE_PATH')).isFile()) {
+            throw new GradleException('ANDROID_KEYSTORE_PATH must point to an existing keystore')
+        }
+    }
+}

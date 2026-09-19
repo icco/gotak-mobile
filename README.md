@@ -57,11 +57,35 @@ NODE_ENV=production EXPO_PUBLIC_API_URL=https://gotak.app ./gradlew assembleRele
 
 Install `android/app/build/outputs/apk/release/app-release.apk`. This release-mode
 APK contains its JavaScript bundle and does not require Metro or Expo Go.
-Expo's generated signing configuration uses its debug key; this is a local
-testing build, not a Play release. Keep using the same key for updates.
-The explicit package ID preserves Expo's initial `com.anonymous.gotakmobile`
-default so repeat prebuilds produce updates to the same installed app.
+The production package ID is `app.gotak.mobile` (display name **Gotak**).
+It installs separately from the old `com.anonymous.gotakmobile` test app.
+The config plugin in `plugins/` installs production signing on every prebuild.
+Release tasks require `ANDROID_KEYSTORE_PATH`, `ANDROID_STORE_PASSWORD`,
+`ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`; missing credentials fail the
+build rather than silently using the debug key. Debug builds still work without
+production credentials. Keep the same signing key for future updates.
 Native directories are generated and ignored by Git.
+
+The Private 1Password vault contains **Gotak Mobile Android production signing**
+(credentials) and **Gotak Mobile Android production keystore** (PKCS12 document).
+Retrieve the document to a temporary local file, set `ANDROID_KEYSTORE_PATH`,
+and use `op run` with these references for the other variables:
+
+```text
+ANDROID_STORE_PASSWORD=op://Private/Gotak Mobile Android production signing/password
+ANDROID_KEY_ALIAS=op://Private/Gotak Mobile Android production signing/key alias
+ANDROID_KEY_PASSWORD=op://Private/Gotak Mobile Android production signing/key password
+```
+
+**Actions → Release Android (APK and AAB)**, or a `v*` tag, builds signed
+artifacts using repository secrets `ANDROID_KEYSTORE_BASE64`,
+`ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.
+The workflow uses `https://gotak.app` and uploads both APK and AAB artifacts.
+Increment `android.versionCode` in `app.json` for subsequent releases.
+
+React is pinned to the exact renderer version, and SecureStore must stay on
+the same SDK major as Expo. Mixing SDK 57 SecureStore with SDK 55 causes a
+native `AnyTypeCache` class-not-found crash before JavaScript starts.
 
 ## Scripts
 
