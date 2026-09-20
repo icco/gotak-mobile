@@ -18,7 +18,8 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#243247",
+        "monochromeImage": "./assets/android-icon/monochrome.png"
       },
       "package": "app.gotak.mobile",
       "versionCode": 2
