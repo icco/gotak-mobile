@@ -17,11 +17,11 @@ Expo React Native client for Tak. Talks to https://gotak.app (override with `EXP
 ## Commands
 
 ```bash
-yarn install
-yarn start
-yarn typecheck
-yarn lint
-yarn test
+pnpm install
+pnpm start
+pnpm typecheck
+pnpm lint
+pnpm test
 ```
 
 ## Architecture
