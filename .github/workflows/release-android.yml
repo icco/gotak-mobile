@@ -1,0 +1,62 @@
+name: Release Android (APK and AAB)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '25'
+          cache: yarn
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --no-install
+      - name: Decode keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "${RUNNER_TEMP}/upload.keystore"
+          echo "ANDROID_KEYSTORE_PATH=${RUNNER_TEMP}/upload.keystore" >> "$GITHUB_ENV"
+      - name: Build signed APK and AAB
+        working-directory: android
+        env:
+          NODE_ENV: production
+          EXPO_PUBLIC_API_URL: https://gotak.app
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease bundleRelease --no-daemon --max-workers=2 '-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g'
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: gotak-release-${{ github.sha }}
+          path: |
+            android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+      - name: Remove signing material
+        if: always()
+        run: rm -f "${RUNNER_TEMP}/upload.keystore"
