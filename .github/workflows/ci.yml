@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: '25'
+  NODE_VERSION: '26'
 
 jobs:
   lint:
@@ -34,23 +34,29 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: yarn lint
+        run: pnpm lint
 
       - name: TypeScript
-        run: yarn typecheck
+        run: pnpm typecheck
 
       - name: Test
-        run: yarn test
+        run: pnpm test
 
   android:
     name: Android
@@ -61,11 +67,17 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'pnpm'
 
       - name: Setup Java
         uses: actions/setup-java@v6
@@ -77,7 +89,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Generate native Android code
         run: npx expo prebuild --platform android --clean
@@ -107,14 +119,20 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Generate native iOS code
         run: npx expo prebuild --platform ios --clean

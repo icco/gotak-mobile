@@ -24,15 +24,17 @@ Expo / React Native client for [Tak](https://ustak.org/play-beautiful-game-tak/)
 
 ## Setup
 
+Use Node.js 26.x.
+
 ```bash
-yarn install
-yarn start
+pnpm install
+pnpm start
 ```
 
 Optional API override:
 
 ```bash
-EXPO_PUBLIC_API_URL=http://localhost:8080 yarn start
+EXPO_PUBLIC_API_URL=http://localhost:8080 pnpm start
 ```
 
 Defaults to `https://gotak.app`.
@@ -45,7 +47,7 @@ React Native's bundled **0.5.0** references `JvmVendorSpec.IBM_SEMERU`, which
 was removed in Gradle 9.
 
 ```bash
-yarn install --frozen-lockfile
+pnpm install --frozen-lockfile
 npx expo prebuild --platform android --no-install
 ```
 
@@ -91,10 +93,10 @@ native `AnyTypeCache` class-not-found crash before JavaScript starts.
 
 | Command | Description |
 |---------|-------------|
-| `yarn start` | Expo dev server |
-| `yarn lint` | ESLint |
-| `yarn typecheck` | TypeScript |
-| `yarn test` | Unit tests (PTN / inventory) |
+| `pnpm start` | Expo dev server |
+| `pnpm lint` | ESLint |
+| `pnpm typecheck` | TypeScript |
+| `pnpm test` | Unit tests (PTN / inventory) |
 
 ## Project structure
 
