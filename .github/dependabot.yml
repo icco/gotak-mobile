@@ -4,7 +4,6 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
     # These versions are pinned by Expo SDK 55 (via `npx expo install`).
     # Bumping them individually breaks the RN + react + native-module
     # compatibility matrix that `expo install --check` enforces. They get
@@ -20,9 +19,26 @@ updates:
       - dependency-name: expo-*
       - dependency-name: '@types/react'
       - dependency-name: typescript
-        update-types: ['version-update:semver-major']
+        update-types:
+          - version-update:semver-major
+    commit-message:
+      prefix: chore(deps)
+      prefix-development: chore(deps-dev)
+    cooldown:
+      default-days: 7
+    groups:
+      npm:
+        patterns:
+          - '*'
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
+    commit-message:
+      prefix: chore(deps)
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - '*'
