@@ -79,11 +79,9 @@ ANDROID_KEY_ALIAS=op://Private/Gotak Mobile Android production signing/key alias
 ANDROID_KEY_PASSWORD=op://Private/Gotak Mobile Android production signing/key password
 ```
 
-**Actions → Release Android (APK and AAB)**, or a `v*` tag, builds signed
-artifacts using repository secrets `ANDROID_KEYSTORE_BASE64`,
+The **Release** workflow (`.github/workflows/release.yml`) runs daily and on demand. It uses semantic-release to publish a GitHub release with a signed APK and AAB whenever `main` has new commits, using repository secrets `ANDROID_KEYSTORE_BASE64`,
 `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.
-The workflow uses `https://gotak.app` and uploads both APK and AAB artifacts.
-Increment `android.versionCode` in `app.json` for subsequent releases.
+The workflow uses `https://gotak.app` and sets the version in `app.json` itself.
 
 React is pinned to the exact renderer version, and SecureStore must stay on
 the same SDK major as Expo. Mixing SDK 57 SecureStore with SDK 55 causes a

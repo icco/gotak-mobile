@@ -1,0 +1,42 @@
+branches:
+  - main
+plugins:
+  - - '@semantic-release/commit-analyzer'
+    - releaseRules:
+        - breaking: true
+          release: major
+        - revert: true
+          release: patch
+        - type: feat
+          release: minor
+        - type: fix
+          release: patch
+        - type: perf
+          release: patch
+        - message: '*'
+          release: patch
+        - subject: '*'
+          release: patch
+        - scope: no-release
+          release: false
+  - '@semantic-release/release-notes-generator'
+  - '@semantic-release/changelog'
+  - - '@semantic-release/npm'
+    - npmPublish: false
+  - - '@semantic-release/exec'
+    - prepareCmd: >-
+        jq --arg version ${nextRelease.version} --argjson code ${nextRelease.version.split('.').reduce((code, part) => code * 1000 + Number(part), 0)} '.expo.version = $version | .expo.android.versionCode = $code' app.json > app.json.tmp && mv app.json.tmp app.json && npx expo prebuild --platform android --no-install && cd android && NODE_ENV=production EXPO_PUBLIC_API_URL=https://gotak.app ./gradlew assembleRelease bundleRelease --no-daemon --max-workers=2 '-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g'
+  - - '@semantic-release/github'
+    - successComment: false
+      failComment: false
+      releasedLabels: false
+      assets:
+        - path: android/app/build/outputs/apk/release/app-release.apk
+          name: gotak-${nextRelease.gitTag}.apk
+        - path: android/app/build/outputs/bundle/release/app-release.aab
+          name: gotak-${nextRelease.gitTag}.aab
+  - - '@semantic-release/git'
+    - assets:
+        - CHANGELOG.md
+        - package.json
+        - app.json
