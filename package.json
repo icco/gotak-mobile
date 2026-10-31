@@ -1,11 +1,11 @@
 {
   "name": "gotak-mobile",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "postinstall": "patch-package",
     "web": "expo start --web",
     "lint": "eslint src --ext .ts,.tsx",

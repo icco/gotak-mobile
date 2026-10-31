@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gotak",
     "slug": "gotak-mobile",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -22,9 +22,11 @@
         "monochromeImage": "./assets/android-icon/monochrome.png"
       },
       "package": "app.gotak.mobile",
-      "versionCode": 2
+      "versionCode": 1000000
     },
-    "plugins": ["./plugins/withAndroidReleaseSigning"],
+    "plugins": [
+      "./plugins/withAndroidReleaseSigning"
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }
