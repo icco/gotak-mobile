@@ -15,7 +15,7 @@
   "dependencies": {
     "@react-navigation/native": "^7.5.1",
     "@react-navigation/stack": "^7.12.1",
-    "axios": "^1.20.0",
+    "axios": "^1.21.0",
     "expo": "^55.0.8",
     "expo-secure-store": "~55.0.18",
     "expo-status-bar": "~55.0.4",
@@ -27,7 +27,7 @@
     "react-native-svg": "15.15.5"
   },
   "devDependencies": {
-    "@babel/core": "^8.0.7",
+    "@babel/core": "^8.0.9",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.2.14",
     "eslint": "^10.13.0",
