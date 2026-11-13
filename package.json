@@ -27,10 +27,10 @@
     "react-native-svg": "15.15.5"
   },
   "devDependencies": {
-    "@babel/core": "^8.0.9",
+    "@babel/core": "^8.1.0",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.2.14",
-    "eslint": "^10.13.0",
+    "eslint": "^10.14.0",
     "eslint-config-expo": "~58.0.4",
     "jest": "^30.5.1",
     "patch-package": "8.0.1",
