@@ -154,3 +154,57 @@ export function remainingPieces(
     capstone: caps,
   };
 }
+
+export type MoveQuality = 'best' | 'good' | 'inaccuracy' | 'mistake' | 'blunder';
+
+/** One half-turn from POST /analyze/game/{slug}. Scores are White-relative; tps is the position before the move. */
+export interface MoveAnalysis {
+  turn: number;
+  player: number;
+  played: string;
+  best: string;
+  agreed: boolean;
+  best_line?: string[];
+  tps?: string;
+  score: number;
+  score_after: number;
+  loss: number;
+  quality?: MoveQuality;
+  error?: string;
+}
+
+export interface CriticalMoment {
+  index: number;
+  turn: number;
+  player: number;
+  played: string;
+  best: string;
+  loss: number;
+  quality: MoveQuality;
+}
+
+export interface GameAnalysis {
+  slug: string;
+  size: number;
+  moves: MoveAnalysis[];
+  critical_moments: CriticalMoment[];
+}
+
+export interface RoadThreats {
+  white: string[];
+  black: string[];
+}
+
+export interface MoveScore {
+  move: string;
+  score: number;
+  loss: number;
+  reply?: string[];
+  error?: string;
+}
+
+export interface Heatmap {
+  size: number;
+  game_count: number;
+  squares: { [key: string]: Record<'white' | 'black', { flat: number; standing: number; capstone: number }> };
+}
