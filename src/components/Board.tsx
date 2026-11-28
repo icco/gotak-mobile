@@ -32,6 +32,22 @@ const UNDER_SHOWN = 8;
 
 type Link = { dir: 'l' | 'r' | 'u' | 'd'; player: number; win: boolean };
 
+/** Lands a stone with a short drop when it first appears on a square. */
+const Settle: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [v] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (reduce) {
+        v.setValue(1);
+        return;
+      }
+      Animated.timing(v, { toValue: 1, duration: 220, easing: Easing.out(Easing.exp), useNativeDriver: true }).start();
+    });
+  }, [v]);
+  const scale = v.interpolate({ inputRange: [0, 1], outputRange: [1.18, 1] });
+  return <Animated.View style={{ opacity: v, transform: [{ scale }] }}>{children}</Animated.View>;
+};
+
 const Square: React.FC<{
   square: string;
   stones: UIStone[];
@@ -130,7 +146,9 @@ const Square: React.FC<{
       ) : null}
 
       {top ? (
-        <Stone player={top.player} type={top.type} size={tile * 0.6} />
+        <Settle key={`${stones.length}${top.player}${top.type}`}>
+          <Stone player={top.player} type={top.type} size={tile * 0.6} />
+        </Settle>
       ) : target ? (
         <View style={[styles.dot, { width: tile * 0.22, height: tile * 0.22 }]} />
       ) : null}

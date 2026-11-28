@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Platform, Share, StyleSheet, Text, useWindowDimensions, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as SecureStore from 'expo-secure-store';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
@@ -29,8 +30,8 @@ const tick = (ms = 8) => {
   if (Platform.OS === 'android') Vibration.vibrate(ms);
 };
 
-// shortcut: tilt preference lives for the app session only; persist it if players ask.
-let tiltPreference = false;
+const TILT_KEY = 'gotak_board_tilt';
+let tiltPreference: boolean | null = null;
 
 const toError = (e: unknown) => (e instanceof Error ? e : new Error(String(e)));
 
@@ -47,7 +48,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   const [busy, setBusy] = useState(false);
   const [aiThinking, setAiThinking] = useState(false);
   const [aiAttempt, setAiAttempt] = useState(0);
-  const [tilt, setTilt] = useState(tiltPreference);
+  const [tilt, setTilt] = useState(tiltPreference ?? false);
   const appActive = useRef(true);
   const requestingAi = useRef(false);
   const slug = route.params?.gameId;
@@ -193,9 +194,22 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
+  useEffect(() => {
+    if (tiltPreference !== null) return;
+    SecureStore.getItemAsync(TILT_KEY)
+      .then((v) => {
+        tiltPreference = v === '1';
+        setTilt(tiltPreference);
+      })
+      .catch((error) => logException(toError(error), { method: 'loadTilt' }));
+  }, []);
+
   const toggleTilt = () => {
     tiltPreference = !tilt;
     setTilt(tiltPreference);
+    SecureStore.setItemAsync(TILT_KEY, tiltPreference ? '1' : '0').catch((error) =>
+      logException(toError(error), { method: 'saveTilt' }),
+    );
   };
 
   const share = async () => {

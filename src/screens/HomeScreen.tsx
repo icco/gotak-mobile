@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { useAuth } from '../context/AuthContext';
@@ -15,12 +16,22 @@ interface Props {
 
 const BOARD_SIZES = [4, 5, 6, 7, 8];
 
+const RULES = [
+  'Win by building a road: a line of your stones joining two opposite edges of the board.',
+  'Each turn, place a stone on an empty square or move a stack whose top stone is yours.',
+  'Flats count toward roads. Walls block roads and nothing can be stacked on them.',
+  'Your capstone counts toward roads, and moving alone it can flatten an opponent wall.',
+  "On the first turn each player places one of the opponent's flats.",
+  'If the board fills or someone runs out of stones, whoever has more flats on top wins.',
+];
+
 export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { user, logout } = useAuth();
   const [boardSize, setBoardSize] = useState(5);
   const [joinSlug, setJoinSlug] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   const run = async (fn: () => Promise<void>, fallback: string) => {
     setBusy(true);
@@ -52,7 +63,8 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.content}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
           <Text style={styles.title}>Tak</Text>
           <Text style={type.label}>Signed in as {user?.name || user?.email}</Text>
@@ -100,12 +112,34 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
 
+        <View style={styles.section}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: rulesOpen }}
+            onPress={() => setRulesOpen((o) => !o)}
+            style={({ pressed }) => [styles.rulesToggle, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={type.label}>How to play</Text>
+            <MaterialCommunityIcons name={rulesOpen ? 'chevron-up' : 'chevron-down'} size={20} color={color.textDim} />
+          </Pressable>
+          {rulesOpen ? (
+            <View style={styles.rules}>
+              {RULES.map((r) => (
+                <Text key={r} style={styles.rule}>
+                  {r}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+        </View>
+
         {error ? <Banner text={error} tone="error" /> : null}
         {busy ? <ActivityIndicator color={color.accent} /> : null}
 
         <Pressable accessibilityRole="button" onPress={() => void logout()} style={styles.signOut}>
           <Text style={type.label}>Sign out</Text>
         </Pressable>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -113,7 +147,8 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.ground },
-  content: { flex: 1, justifyContent: 'center', padding: space.xl, gap: space.xl },
+  fill: { flex: 1 },
+  content: { flexGrow: 1, justifyContent: 'center', padding: space.xl, gap: space.xl },
   hero: { gap: space.xs },
   title: { fontSize: 56, fontWeight: '700', letterSpacing: -1.5, color: color.text },
   section: { gap: space.sm },
@@ -138,5 +173,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     fontSize: 16,
   },
+  rulesToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48 },
+  rules: { gap: space.sm, backgroundColor: color.surface, borderRadius: radius.md, padding: space.lg },
+  rule: { fontSize: 15, lineHeight: 21, color: color.text },
   signOut: { alignSelf: 'center', minHeight: 48, justifyContent: 'center', paddingHorizontal: space.lg },
 });
