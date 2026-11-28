@@ -115,7 +115,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     const waiting = game.status === 'waiting' || (me != null && game.current_player !== me);
     if (!waiting) return;
     const id = setInterval(() => {
-      if (!appActive.current) return;
+      if (!appActive.current || socketLive.current) return;
       gotakAPI
         .getGame(game.Slug)
         .then((g) => {
