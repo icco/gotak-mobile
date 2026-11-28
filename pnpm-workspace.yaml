@@ -1,2 +1,11 @@
 minimumReleaseAgeExclude:
   - '@icco/*'
+  - '@babel/core@8.1.4'
+  - '@babel/generator@8.1.4'
+  - '@babel/helpers@8.1.4'
+  - '@babel/traverse@8.1.4'
+  - '@eslint/config-array@0.23.7'
+  - eslint@10.16.0
+allowBuilds:
+  '@parcel/watcher': true
+  unrs-resolver: true
