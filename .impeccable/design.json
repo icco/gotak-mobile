@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-28T00:00:00Z",
+  "title": "Design System: Gotak",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Signal Amber", "tonalRamp": ["oklch(25% 0.05 80)", "oklch(36% 0.08 80)", "oklch(48% 0.11 80)", "oklch(60% 0.14 80)", "oklch(72% 0.15 80)", "oklch(81% 0.15 80)", "oklch(89% 0.09 80)", "oklch(95% 0.04 80)"] },
+      "on-accent": { "role": "primary", "displayName": "Amber Ink" },
+      "accent-soft": { "role": "primary", "displayName": "Amber Wash" },
+      "ground": { "role": "neutral", "displayName": "Night Ground", "tonalRamp": ["oklch(15% 0.01 165)", "oklch(19% 0.012 165)", "oklch(24% 0.014 165)", "oklch(30% 0.016 165)", "oklch(45% 0.018 165)", "oklch(62% 0.018 165)", "oklch(78% 0.012 165)", "oklch(95% 0.006 165)"] },
+      "surface": { "role": "neutral", "displayName": "Moss Surface" },
+      "surface-high": { "role": "neutral", "displayName": "Raised Moss" },
+      "line": { "role": "neutral", "displayName": "Hairline Moss" },
+      "text": { "role": "neutral", "displayName": "Mist Text" },
+      "text-dim": { "role": "neutral", "displayName": "Lichen Text" },
+      "last-move": { "role": "neutral", "displayName": "Last-Move Veil" },
+      "board": { "role": "secondary", "displayName": "Sage Board", "tonalRamp": ["oklch(20% 0.02 160)", "oklch(30% 0.025 160)", "oklch(40% 0.028 160)", "oklch(48% 0.028 160)", "oklch(58% 0.028 160)", "oklch(67% 0.026 160)", "oklch(80% 0.018 160)", "oklch(94% 0.008 160)"] },
+      "tile": { "role": "secondary", "displayName": "Sage Tile" },
+      "tile-edge": { "role": "secondary", "displayName": "Tile Lip" },
+      "stone-white": { "role": "tertiary", "displayName": "Ivory" },
+      "stone-white-edge": { "role": "tertiary", "displayName": "Ivory Edge" },
+      "stone-black": { "role": "tertiary", "displayName": "Graphite" },
+      "stone-black-edge": { "role": "tertiary", "displayName": "Graphite Edge" },
+      "danger": { "role": "status", "displayName": "Coral" },
+      "danger-soft": { "role": "status", "displayName": "Coral Wash" }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Screen header and game result line." },
+      "body": { "displayName": "Body", "purpose": "Player names, hand status, inputs; button labels at 600." },
+      "label": { "displayName": "Label", "purpose": "Section labels, banners, move list, PTN preview." },
+      "small": { "displayName": "Small", "purpose": "Turn subtitle, stat captions, to-move marker." },
+      "stat": { "displayName": "Stat", "purpose": "Reserve and flat counts in player bars, tabular." },
+      "board-mark": { "displayName": "Board mark", "purpose": "Square coordinates and stack-height badges, tabular." }
+    },
+    "shadows": [
+      { "name": "board-lift", "value": "0 10px 16px rgba(0,0,0,0.40)", "purpose": "Under the board frame; Android elevation 8; removed in 3D tilt." },
+      { "name": "stone-drop", "value": "0 calc(size*0.05) calc(size*0.06) rgba(0,0,0,0.35)", "purpose": "Every stone; scales with stone size; Android elevation 3." },
+      { "name": "tile-lip", "value": "inset 0 -2px 0 #6E8077", "purpose": "2px bottom border that raises each square." }
+    ],
+    "motion": [
+      { "name": "road-sweep", "value": "280ms, 70ms stagger per square, Easing.out(Easing.exp)", "purpose": "Winning road fills in square by square; instant under reduce motion." },
+      { "name": "press-dim", "value": "opacity 0.45", "purpose": "Pressed and disabled state for chrome controls; board squares dim to 0.85." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one amber action per view, such as Rematch or Log in.",
+      "html": "<button class=\"ds-btn-primary\">Rematch</button>",
+      "css": ".ds-btn-primary { min-height: 48px; padding: 0 16px; border: none; border-radius: 12px; background: #F4B740; color: #1D1606; font: 600 16px Roboto, system-ui, sans-serif; } .ds-btn-primary:active, .ds-btn-primary:disabled { opacity: 0.45; } .ds-btn-primary:focus-visible { outline: 2px solid #EEF2EF; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Neutral actions beside a primary, such as Home or Retry.",
+      "html": "<button class=\"ds-btn-secondary\">Home</button>",
+      "css": ".ds-btn-secondary { min-height: 48px; padding: 0 16px; border: none; border-radius: 12px; background: #222D29; color: #EEF2EF; font: 600 16px Roboto, system-ui, sans-serif; } .ds-btn-secondary:active { opacity: 0.45; } .ds-btn-secondary:focus-visible { outline: 2px solid #F4B740; outline-offset: 2px; }"
+    },
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "icon-button",
+      "description": "48dp round header and panel control; fills amber when active.",
+      "html": "<button class=\"ds-icon-btn\" aria-label=\"Back\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z\"/></svg></button><button class=\"ds-icon-btn ds-icon-btn-active\" aria-label=\"3D board\" aria-pressed=\"true\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M3 5h18v14H3z\" opacity=\".3\"/></svg></button>",
+      "css": ".ds-icon-btn { width: 48px; height: 48px; border: none; border-radius: 999px; background: transparent; color: #EEF2EF; display: inline-flex; align-items: center; justify-content: center; } .ds-icon-btn:hover { background: #2E3A35; } .ds-icon-btn:active { opacity: 0.45; } .ds-icon-btn:focus-visible { outline: 2px solid #F4B740; outline-offset: 2px; } .ds-icon-btn-active { background: #F4B740; color: #1D1606; } .ds-icon-btn-active:hover { background: #F4B740; }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Strokeless moss field for email, password, and game code.",
+      "html": "<input class=\"ds-input\" placeholder=\"Game code\">",
+      "css": ".ds-input { min-height: 48px; padding: 0 16px; border: none; border-radius: 12px; background: #18211E; color: #EEF2EF; font: 400 16px Roboto, system-ui, sans-serif; } .ds-input::placeholder { color: #A3B1AA; } .ds-input:focus-visible { outline: 2px solid #F4B740; outline-offset: 0; }"
+    },
+    {
+      "name": "Board Size Choice",
+      "kind": "chip",
+      "refersTo": "choice",
+      "description": "Equal-width size picker; the selected size fills amber.",
+      "html": "<div class=\"ds-choices\"><button class=\"ds-choice\">4</button><button class=\"ds-choice\">5</button><button class=\"ds-choice ds-choice-on\" aria-pressed=\"true\">6</button><button class=\"ds-choice\">7</button><button class=\"ds-choice\">8</button></div>",
+      "css": ".ds-choices { display: flex; gap: 8px; } .ds-choice { flex: 1; height: 48px; border: none; border-radius: 12px; background: #18211E; color: #EEF2EF; font: 600 16px Roboto, system-ui, sans-serif; font-variant-numeric: tabular-nums; } .ds-choice:active { opacity: 0.45; } .ds-choice:focus-visible { outline: 2px solid #F4B740; outline-offset: 2px; } .ds-choice-on { background: #F4B740; color: #1D1606; }"
+    },
+    {
+      "name": "Stone Tray",
+      "kind": "custom",
+      "refersTo": "tray-item",
+      "description": "Flat, wall, and cap picker; the selected piece gets an amber outline.",
+      "html": "<div class=\"ds-tray\"><button class=\"ds-tray-item ds-tray-item-on\"><span class=\"ds-stone\"></span>Flat</button><button class=\"ds-tray-item\"><span class=\"ds-stone ds-wall\"></span>Wall</button><button class=\"ds-tray-item\" disabled><span class=\"ds-stone ds-cap\"></span>Cap</button></div>",
+      "css": ".ds-tray { display: flex; gap: 8px; } .ds-tray-item { flex: 1; min-height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 2px solid transparent; border-radius: 12px; background: #18211E; color: #A3B1AA; font: 600 13px Roboto, system-ui, sans-serif; } .ds-tray-item:active, .ds-tray-item:disabled { opacity: 0.45; } .ds-tray-item:focus-visible { outline: 2px solid #EEF2EF; outline-offset: 2px; } .ds-tray-item-on { border-color: #F4B740; background: #222D29; color: #EEF2EF; } .ds-stone { width: 30px; height: 30px; border-radius: 5px; background: #F2EDE3; border: 1px solid #B9B0A0; box-shadow: 0 1.5px 2px rgba(0,0,0,0.35); } .ds-wall { width: 10px; height: 28px; transform: rotate(45deg); } .ds-cap { width: 22px; height: 22px; border-radius: 999px; }"
+    },
+    {
+      "name": "Player Bar",
+      "kind": "custom",
+      "refersTo": "player-bar-to-move",
+      "description": "Stone swatch, name, and tabular stats; moss fill when that player is to move.",
+      "html": "<div class=\"ds-player ds-player-to-move\"><span class=\"ds-swatch\"></span><div class=\"ds-player-name\">Ada<small><i></i>To move</small></div><div class=\"ds-stat\"><b>21</b><small>stones</small></div><div class=\"ds-stat\"><b>1</b><small>caps</small></div><div class=\"ds-stat ds-stat-strong\"><b>4</b><small>flats</small></div></div>",
+      "css": ".ds-player { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; border-radius: 12px; color: #EEF2EF; font: 400 16px Roboto, system-ui, sans-serif; } .ds-player-to-move { background: #18211E; } .ds-swatch { width: 22px; height: 22px; border-radius: 4px; background: #F2EDE3; border: 1px solid #B9B0A0; } .ds-player-name { flex: 1; display: flex; flex-direction: column; } .ds-player-name small { display: flex; align-items: center; gap: 6px; color: #F4B740; font: 600 12px Roboto, system-ui, sans-serif; } .ds-player-name i { width: 8px; height: 8px; border-radius: 4px; background: #F4B740; } .ds-stat { min-width: 44px; display: flex; flex-direction: column; align-items: center; } .ds-stat b { color: #A3B1AA; font: 600 18px Roboto, system-ui, sans-serif; font-variant-numeric: tabular-nums; } .ds-stat small { color: #A3B1AA; font: 600 12px Roboto, system-ui, sans-serif; } .ds-stat-strong b { color: #EEF2EF; }"
+    },
+    {
+      "name": "Banner",
+      "kind": "custom",
+      "refersTo": "banner-error",
+      "description": "Inline hint or error with an optional amber text action; never a modal.",
+      "html": "<div class=\"ds-banner\" role=\"status\">Tap a highlighted square to drop a stone.</div><div class=\"ds-banner ds-banner-error\" role=\"status\"><span>Could not reach the server.</span><button>Retry</button></div>",
+      "css": ".ds-banner { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 8px 12px; margin-bottom: 8px; border-radius: 6px; background: #18211E; color: #EEF2EF; font: 500 14px Roboto, system-ui, sans-serif; } .ds-banner span { flex: 1; } .ds-banner-error { background: rgba(242,112,106,0.16); color: #F2706A; } .ds-banner button { border: none; background: none; color: #F4B740; font: inherit; } .ds-banner button:focus-visible { outline: 2px solid #F4B740; outline-offset: 2px; }"
+    },
+    {
+      "name": "Board Squares",
+      "kind": "custom",
+      "refersTo": "hand-count",
+      "description": "Raised sage tiles showing a legal target, a stack with badge, the floating hand, and the last move.",
+      "html": "<div class=\"ds-board\"><div class=\"ds-tile ds-target\"><span class=\"ds-dot\"></span></div><div class=\"ds-tile\"><span class=\"ds-piece\"></span><span class=\"ds-badge\">3</span></div><div class=\"ds-tile ds-origin\"><span class=\"ds-hand\">2</span><span class=\"ds-piece ds-piece-black\"></span></div><div class=\"ds-tile ds-last\"></div></div>",
+      "css": ".ds-board { display: grid; grid-template-columns: repeat(2, 72px); gap: 3px; padding: 6px; width: max-content; border-radius: 10px; background: #55665E; box-shadow: 0 10px 16px rgba(0,0,0,0.40); } .ds-tile { position: relative; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; border-radius: 4px; background: #8A9C92; box-shadow: inset 0 -2px 0 #6E8077; overflow: hidden; } .ds-tile:active { opacity: 0.85; } .ds-target { box-shadow: inset 0 0 0 3px #F4B740; } .ds-dot { width: 16px; height: 16px; border-radius: 999px; background: #F4B740; opacity: 0.9; } .ds-origin { background-image: linear-gradient(rgba(244,183,64,0.30), rgba(244,183,64,0.30)); } .ds-last { background-image: linear-gradient(rgba(238,242,239,0.22), rgba(238,242,239,0.22)); } .ds-piece { width: 43px; height: 43px; border-radius: 7px; background: #F2EDE3; border: 2px solid #B9B0A0; box-shadow: 0 3.6px 4.3px rgba(0,0,0,0.35); } .ds-piece-black { background: #25282D; border-color: #0B0C0E; } .ds-badge { position: absolute; top: 3px; right: 3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: rgba(15,21,19,0.78); color: #EEF2EF; font: 700 11px/18px Roboto, system-ui, sans-serif; font-variant-numeric: tabular-nums; text-align: center; box-sizing: border-box; } .ds-hand { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #F4B740; color: #1D1606; font: 800 12px/20px Roboto, system-ui, sans-serif; font-variant-numeric: tabular-nums; text-align: center; box-sizing: border-box; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Board Is the Interface",
+    "overview": "Gotak is a dark, calm game room in the vein of lichess. A green-black ground recedes so a raised sage board can fill the phone's width, and everything a newcomer needs to learn (legal targets, the stone in hand, roads, the last move) is drawn on the squares themselves rather than explained around them. Chrome is flat, low, and quiet; the board and stones are the only physical objects on screen.\n\nDensity is phone-native: one column, 48dp targets, controls stacked under the board in thumb reach. The single amber accent is a signal, not a decoration. When amber appears, the player can act there or has just won there.",
+    "keyCharacteristics": [
+      "Board first: a full-width square board centered between the opponent above and the player below.",
+      "One accent, one meaning: amber marks \"you can act here\" and the winning road.",
+      "Flat chrome, physical pieces: only the board and stones cast shadows.",
+      "System sans with tabular numerals for every count, turn, and move.",
+      "Teaching lives on the board: dots, outlines, connectors, and badges instead of rules text."
+    ],
+    "rules": [
+      { "name": "The One Signal Rule", "body": "Amber means the player can act here, has chosen this, or has won here. Never use it for decoration, headings, or the opponent's state.", "section": "colors" },
+      { "name": "The Stone Color Rule", "body": "Player identity is carried only by stone colors (ivory, graphite), never by chrome. Road connectors take the stone color of their owner until a road wins, when they turn amber.", "section": "colors" },
+      { "name": "The Tabular Rule", "body": "Every number that changes during play (counts, turn, move list, badges, board size) uses tabular numerals.", "section": "typography" },
+      { "name": "The Pieces-Only Depth Rule", "body": "Shadows belong to the board and stones. Panels, buttons, banners, and bars stay flat and use tonal surfaces.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** draw rules on the board: targets, hand count, stack height, and roads are marks on squares, not text.",
+      "**Do** keep every tappable control at least 48dp and give every board square a spoken label with its stack.",
+      "**Do** use tabular numerals for every number that changes during play.",
+      "**Do** report errors inline in a banner or under the field, with what to do next.",
+      "**Do** dim to 45% opacity for pressed and disabled states."
+    ],
+    "donts": [
+      "**Don't** use amber for anything the player cannot act on or has not won.",
+      "**Don't** put shadows on chrome; only the board and stones are physical.",
+      "**Don't** open modals or dialogs for errors or rules.",
+      "**Don't** give player identity a chrome color; ivory and graphite stones carry it."
+    ]
+  }
+}
