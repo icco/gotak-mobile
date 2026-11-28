@@ -1,7 +1,7 @@
 import axios, { isAxiosError } from 'axios';
 import type { AxiosInstance } from 'axios';
 import { API_CONFIG } from '../config/api';
-import { AuthResponse, AuthUser, GameMode, GameState } from '../types/game';
+import { AuthResponse, AuthUser, GameAnalysis, GameMode, GameState, Heatmap, MoveScore, Replay, RoadThreats } from '../types/game';
 import { logDebug, logError, logException } from '../utils/logger';
 
 type UnauthorizedHandler = () => void;
@@ -126,6 +126,49 @@ class GotakAPI {
       time_limit: timeLimitNs,
     }, { timeout: timeLimitNs / 1_000_000 + 20_000 });
     return this.normalizeGame(response.data);
+  }
+
+  /** Runs the engine over the whole game. Long games come back 202 with a job to poll. */
+  async analyzeGame(slug: string, signal?: AbortSignal): Promise<GameAnalysis> {
+    // shortcut: the server answers inline for up to 20s of engine time, so allow that plus network slack.
+    const response = await this.client.post(`/analyze/game/${slug}`, {}, { timeout: 60_000, signal });
+    if (response.status !== 202) return this.normalizeAnalysis(response.data);
+    const statusUrl: string = response.data.status_url;
+    const deadline = Date.now() + 10 * 60_000;
+    let status: string = response.data.status;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 3000));
+      signal?.throwIfAborted();
+      const job = (await this.client.get(statusUrl, { signal })).data;
+      status = job.status;
+      if (status === 'done' && job.result) return this.normalizeAnalysis(job.result);
+      if (status === 'failed') throw new Error(job.error || 'Analysis failed.');
+    }
+    throw new Error(`Analysis is still ${status} after 10 minutes. Try again later.`);
+  }
+
+  async analyzePosition(tps: string): Promise<RoadThreats> {
+    const response = await this.client.post('/analyze/position', { tps }, { timeout: 30_000 });
+    return { white: response.data.threats?.white ?? [], black: response.data.threats?.black ?? [] };
+  }
+
+  async compareMoves(tps: string, moves: string[]): Promise<MoveScore[]> {
+    const response = await this.client.post('/analyze/compare-moves', { tps, moves }, { timeout: 60_000 });
+    return response.data.moves ?? [];
+  }
+
+  async getHeatmap(size: number): Promise<Heatmap> {
+    const response = await this.client.get<Heatmap>('/analyze/heatmap', { params: { size } });
+    return { ...response.data, squares: response.data.squares ?? {} };
+  }
+
+  private normalizeAnalysis(raw: any): GameAnalysis {
+    return { slug: raw.slug, size: raw.size, moves: raw.moves ?? [], critical_moments: raw.critical_moments ?? [] };
+  }
+
+  async getReplay(slug: string): Promise<Replay> {
+    const response = await this.client.get<Replay>(`/game/${slug}/replay`);
+    return { slug: response.data.slug, size: response.data.size, steps: response.data.steps ?? [] };
   }
 
   getGameLink(slug: string): string {

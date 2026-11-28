@@ -307,6 +307,10 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       <View style={styles.result}>
         <Text style={type.title}>{result}</Text>
         <View style={styles.actions}>
+          <TextButton label="Replay" icon="play-circle-outline" onPress={() => navigation.navigate('Replay', { gameId: game.Slug })} />
+          <TextButton label="Analyze" icon="chart-line" onPress={() => navigation.navigate('Analysis', { gameId: game.Slug })} />
+        </View>
+        <View style={styles.actions}>
           <TextButton label="Home" onPress={() => navigation.goBack()} />
           {me ? <TextButton label="Rematch" primary onPress={() => void rematch()} /> : null}
         </View>

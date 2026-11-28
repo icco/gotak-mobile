@@ -29,7 +29,7 @@ A native mobile app with a built-in computer opponent and async games with frien
 - Email and password accounts; Google sign-in is deferred.
 - Board sizes 4 to 8; turn 1 places the opponent's flat; walls can only be flattened by a lone capstone, and gotak forbids flattening your own wall.
 - Android ships from the daily Release workflow as `com.timeclimbers.gotak`; iOS builds in CI but is not released.
-- No offline play, spectating, or analysis UI yet.
+- No offline play or spectating yet. Finished games can be analyzed by the engine.
 
 ## Brand Commitments
 

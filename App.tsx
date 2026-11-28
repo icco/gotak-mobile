@@ -10,6 +10,8 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { GameScreen } from './src/screens/GameScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
+import { AnalysisScreen } from './src/screens/AnalysisScreen';
+import { ReplayScreen } from './src/screens/ReplayScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -30,6 +32,8 @@ function RootNavigator() {
         <>
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="Game" component={GameScreen} />
+          <Stack.Screen name="Analysis" component={AnalysisScreen} />
+          <Stack.Screen name="Replay" component={ReplayScreen} />
         </>
       ) : (
         <Stack.Screen name="Login" component={LoginScreen} />
