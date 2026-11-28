@@ -55,11 +55,16 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   const slug = route.params?.gameId;
 
   const live = useSpectate(slug);
+  // Once a watcher has a socket snapshot, late HTTP responses must not roll it back.
+  const socketLive = useRef(false);
   useEffect(() => {
     // Players get state from their own moves and the poll; only watchers follow the socket.
     const g = live.game;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirrors socket state into the screen's game
-    if (g && user && g.white_player_id !== user.id && g.black_player_id !== user.id) setGame(g);
+    if (g && user && g.white_player_id !== user.id && g.black_player_id !== user.id) {
+      socketLive.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirrors socket state into the screen's game
+      setGame(g);
+    }
   }, [live.game, user]);
 
   const board: UIBoard | null = useMemo(() => (game ? normalizeBoard(game.Board) : null), [game]);
@@ -84,7 +89,8 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
     try {
-      setGame(await gotakAPI.getGame(slug));
+      const fetched = await gotakAPI.getGame(slug);
+      if (!socketLive.current) setGame(fetched);
       setLoadError(null);
     } catch (error) {
       logException(toError(error), { method: 'loadGame' });
@@ -112,7 +118,9 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       if (!appActive.current) return;
       gotakAPI
         .getGame(game.Slug)
-        .then(setGame)
+        .then((g) => {
+          if (!socketLive.current) setGame(g);
+        })
         .catch((error) => logException(toError(error), { method: 'pollGame' }));
     }, 2000);
     return () => clearInterval(id);
