@@ -154,3 +154,19 @@ export function remainingPieces(
     capstone: caps,
   };
 }
+
+/** One half-turn from GET /game/{slug}/replay, with the board after it. */
+export interface ReplayStep {
+  turn: number;
+  player: number;
+  move: string;
+  board: { [key: string]: Stone[] };
+  played_at?: string;
+  comment?: string;
+}
+
+export interface Replay {
+  slug: string;
+  size: number;
+  steps: ReplayStep[];
+}

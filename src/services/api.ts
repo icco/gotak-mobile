@@ -1,7 +1,7 @@
 import axios, { isAxiosError } from 'axios';
 import type { AxiosInstance } from 'axios';
 import { API_CONFIG } from '../config/api';
-import { AuthResponse, AuthUser, GameMode, GameState } from '../types/game';
+import { AuthResponse, AuthUser, GameMode, GameState, Replay } from '../types/game';
 import { logDebug, logError, logException } from '../utils/logger';
 
 type UnauthorizedHandler = () => void;
@@ -126,6 +126,11 @@ class GotakAPI {
       time_limit: timeLimitNs,
     }, { timeout: timeLimitNs / 1_000_000 + 20_000 });
     return this.normalizeGame(response.data);
+  }
+
+  async getReplay(slug: string): Promise<Replay> {
+    const response = await this.client.get<Replay>(`/game/${slug}/replay`);
+    return { slug: response.data.slug, size: response.data.size, steps: response.data.steps ?? [] };
   }
 
   getGameLink(slug: string): string {
