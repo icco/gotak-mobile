@@ -23,13 +23,31 @@
         "monochromeImage": "./assets/android-icon/monochrome.png"
       },
       "package": "com.timeclimbers.gotak",
-      "versionCode": 1002000
+      "versionCode": 1002000,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "gotak.app",
+              "pathPrefix": "/game/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "plugins": [
       "./plugins/withAndroidReleaseSigning"
     ],
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "scheme": "gotak"
   }
 }
