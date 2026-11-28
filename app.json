@@ -43,7 +43,9 @@
       ]
     },
     "plugins": [
-      "./plugins/withAndroidReleaseSigning"
+      "./plugins/withAndroidReleaseSigning",
+      "expo-secure-store",
+      "expo-status-bar"
     ],
     "web": {
       "favicon": "./assets/favicon.png"
