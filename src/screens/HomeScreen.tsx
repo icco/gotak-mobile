@@ -7,6 +7,7 @@ import { RootStackParamList } from '../types/navigation';
 import { useAuth } from '../context/AuthContext';
 import { gotakAPI } from '../services/api';
 import { GameMode } from '../types/game';
+import { parseSlug } from '../utils/spectate';
 import { Banner, TextButton } from '../components/GamePanels';
 import { color, radius, space, type } from '../theme';
 
@@ -53,13 +54,20 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   const join = () =>
     run(async () => {
-      const slug = joinSlug.trim();
+      const slug = parseSlug(joinSlug);
       const game = await gotakAPI.getGame(slug);
       if (game.white_player_id !== user?.id && game.black_player_id !== user?.id) {
         await gotakAPI.joinGame(slug);
       }
       navigation.navigate('Game', { gameId: slug, mode: game.mode });
     }, 'Could not join that game. Check the code and try again.');
+
+  const watch = () =>
+    run(async () => {
+      const slug = parseSlug(joinSlug);
+      const game = await gotakAPI.getGame(slug);
+      navigation.navigate('Game', { gameId: slug, mode: game.mode });
+    }, 'Could not find that game. Check the code and try again.');
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -95,11 +103,11 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={type.label}>Have a game code?</Text>
+          <Text style={type.label}>Have a game code or link?</Text>
           <View style={styles.row}>
             <TextInput
               style={styles.input}
-              placeholder="Game code"
+              placeholder="Game code or link"
               placeholderTextColor={color.textDim}
               autoCapitalize="none"
               autoCorrect={false}
@@ -108,6 +116,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
               onChangeText={setJoinSlug}
               onSubmitEditing={() => joinSlug.trim() && void join()}
             />
+            {joinSlug.trim() ? <TextButton label="Watch" onPress={() => void watch()} /> : null}
             {joinSlug.trim() ? <TextButton label="Join" onPress={() => void join()} /> : null}
           </View>
         </View>
