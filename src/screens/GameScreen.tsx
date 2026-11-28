@@ -9,7 +9,7 @@ import { gotakAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { buildPlacementPtn } from '../utils/ptn';
 import { Spread, legalTargets, previewBoard, remaining, spreadPtn, startSpread, tapSpread, undoSpread, currentSquare } from '../utils/spread';
-import { flatCount, lastMoveSquares, moveList, turnNumber } from '../utils/board';
+import { flatCount, lastMoveSquares, moveList, turnNumber, winningRoad } from '../utils/board';
 import { logException } from '../utils/logger';
 import { Board } from '../components/Board';
 import { Banner, HandBar, IconButton, MoveStrip, PlayerBar, StackInspector, StoneTray, TextButton } from '../components/GamePanels';
@@ -242,12 +242,14 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   if (pending) {
     shown = { ...shown, squares: { ...shown.squares, [pending.square]: [{ player: pending.player, type: pending.type }] } };
   }
+  const road = finished && game.winner ? winningRoad(board, game.winner) : [];
   const handSquare = spread ? (currentSquare(spread, board.size) ?? spread.origin) : undefined;
   const marks = {
     targets: spread && me ? legalTargets(board, spread, me) : [],
     origin: spread?.origin,
     inspect: inspect ?? undefined,
     last: lastMoveSquares(game.Turns, board.size),
+    road,
     hand: spread && handSquare ? { square: handSquare, count: remaining(spread) } : undefined,
   };
 
@@ -263,17 +265,26 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     status = { text: 'You are watching this game.' };
   } else if (!status && canAct && firstTurn) {
     status = { text: "First turn: place one of your opponent's flats." };
+  } else if (!status && me && !canAct && !finished && game.mode === 'human' && game.status === 'active') {
+    status = { text: 'Waiting for your opponent to move.' };
+  } else if (!status && canAct && turn <= 3 && spread) {
+    status = {
+      text: spread.drops.length
+        ? 'Tap a highlighted square to drop the next stone, or Undo to pick the last one back up.'
+        : spread.hand.length > 1
+          ? 'Tap a highlighted square to drop a stone. Tap the stack to carry one fewer.'
+          : 'Tap a highlighted square to move the stone. Tap it again to cancel.',
+    };
+  } else if (!status && canAct && turn <= 3) {
+    status = { text: 'Tap an empty square to place a stone, or tap your stack to move it. Connect two opposite edges to win.' };
   }
 
+  const how = road.length ? ' by road' : ' on flats';
   const result = !finished
     ? null
     : game.winner === 0
       ? 'Draw'
-      : me
-        ? game.winner === me
-          ? 'You won'
-          : 'You lost'
-        : `${playerName(game.winner)} wins`;
+      : (me ? (game.winner === me ? 'You won' : 'You lost') : `${playerName(game.winner)} wins`) + how;
 
   let panel: React.ReactNode;
   if (result) {
@@ -319,7 +330,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={type.title}>
             {board.size}×{board.size} {game.mode === 'ai' ? 'vs computer' : 'vs friend'}
           </Text>
-          <Text style={type.small}>Turn {turn} · {game.Slug}</Text>
+          <Text style={type.small}>Turn {turn}{game.mode === 'human' ? ` · ${game.Slug}` : ''}</Text>
         </View>
         <IconButton icon="video-3d" label="3D board" active={tilt} onPress={toggleTilt} />
         {game.mode === 'human' ? <IconButton icon="share-variant" label="Share game" onPress={() => void share()} /> : null}
@@ -351,6 +362,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
             caps={mine.capstone}
             onBoard={flatCount(board, me)}
             toMove={!finished && game.current_player === me}
+            mine
           />
         ) : null}
       </View>

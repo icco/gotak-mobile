@@ -13,6 +13,8 @@ Expo / React Native client for [Tak](https://ustak.org/play-beautiful-game-tak/)
 - Tap your stack, then tap squares to drop one stone at a time (tap the origin to carry fewer; undo and cancel mid-move)
 - Legal drop targets, last move, stack counts, and a stack inspector (long-press any square)
 - Both players' reserves and flat counts, move list, inline errors
+- Road connections between adjacent road stones, and the winning road highlighted at the end
+- Hints on the first turns for new players
 - Human games poll for opponent moves
 - AI games call `/ai-move` after your turn
 - Share game link
@@ -22,7 +24,6 @@ Expo / React Native client for [Tak](https://ustak.org/play-beautiful-game-tak/)
 - Offline mode
 - Spectating / WebSockets
 - Drag-and-drop gestures
-- Road highlighting
 - iOS haptics
 - App Store / Play Store release builds
 

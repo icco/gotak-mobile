@@ -31,4 +31,5 @@ pnpm test
 - `src/utils/ptn.ts` — PTN builders for place and slide
 - `src/utils/spread.ts` — spread state machine; legality mirrors gotak `Board.DoMove` (including no flattening your own wall)
 - `src/theme.ts` — colors, spacing, and type tokens
+- `PRODUCT.md`, `DESIGN.md`, and `.impeccable/surfaces/` — Impeccable product and design records; read before changing UI
 - Game create uses `Accept: application/json` so the server returns 201 + enriched `GameStateResponse`
