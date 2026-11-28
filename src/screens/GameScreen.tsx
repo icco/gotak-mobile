@@ -268,7 +268,13 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   } else if (!status && me && !canAct && !finished && game.mode === 'human' && game.status === 'active') {
     status = { text: 'Waiting for your opponent to move.' };
   } else if (!status && canAct && turn <= 3 && spread) {
-    status = { text: 'Tap a highlighted square to drop a stone. Tap the stack to put one back.' };
+    status = {
+      text: spread.drops.length
+        ? 'Tap a highlighted square to drop the next stone.'
+        : spread.hand.length > 1
+          ? 'Tap a highlighted square to drop a stone. Tap the stack to carry one fewer.'
+          : 'Tap a highlighted square to move the stone. Tap it again to cancel.',
+    };
   } else if (!status && canAct && turn <= 3) {
     status = { text: 'Tap an empty square to place a stone, or tap your stack to move it. Connect two opposite edges to win.' };
   }

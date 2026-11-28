@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { UIBoard, UIStone } from '../types/game';
-import { coordsToSquare } from '../utils/ptn';
+import { coordsToSquare, squareToCoords } from '../utils/ptn';
 import { roadLinks } from '../utils/board';
 import { color, stoneFill } from '../theme';
 import { Stone } from './Stone';
@@ -75,11 +75,12 @@ const Square: React.FC<{
   const label = top
     ? `${square}, ${stones.length} stone${stones.length > 1 ? 's' : ''}, ${top.player === 1 ? 'white' : 'black'} ${top.type === 'S' ? 'wall' : top.type === 'C' ? 'capstone' : 'flat'} on top`
     : `${square}, empty`;
+  const spoken = roadIndex >= 0 ? `${label}, part of the winning road` : label;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={spoken}
       accessibilityState={{ selected: isOrigin || inspect }}
       onPress={() => onPress(square)}
       onLongPress={() => onLongPress(square)}
@@ -153,11 +154,32 @@ export const Board: React.FC<Props> = ({ board, width, tilt, marks, onPress, onL
   const tile = (width - PAD * 2 - GAP * (board.size - 1)) / board.size;
   const links = new Map<string, Link[]>();
   const road = new Set(marks.road);
+  const bridges = [];
   for (const { from, to, player } of roadLinks(board)) {
     const win = road.has(from) && road.has(to);
     const across = from[1] === to[1];
     links.set(from, [...(links.get(from) ?? []), { dir: across ? 'r' : 'u', player, win }]);
     links.set(to, [...(links.get(to) ?? []), { dir: across ? 'l' : 'd', player, win }]);
+    // Tiles clip their own halves, so the gap between them gets its own piece.
+    const c = squareToCoords(from)!;
+    const t = Math.max(4, tile * (win ? 0.14 : 0.1));
+    const step = tile + GAP;
+    const top = PAD + (board.size - 1 - c.y) * step;
+    const left = PAD + c.x * step;
+    bridges.push(
+      <View
+        key={`${from}-${to}`}
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          backgroundColor: win ? color.accent : stoneFill(player),
+          opacity: win ? 1 : 0.8,
+          ...(across
+            ? { left: left + tile, width: GAP, top: top + (tile - t) / 2, height: t }
+            : { top: top - GAP, height: GAP, left: left + (tile - t) / 2, width: t }),
+        }}
+      />,
+    );
   }
   const rows = [];
   for (let y = board.size - 1; y >= 0; y--) {
@@ -194,6 +216,7 @@ export const Board: React.FC<Props> = ({ board, width, tilt, marks, onPress, onL
       ]}
     >
       {rows}
+      {bridges}
     </View>
   );
 };
