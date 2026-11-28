@@ -1,7 +1,7 @@
 import axios, { isAxiosError } from 'axios';
 import type { AxiosInstance } from 'axios';
 import { API_CONFIG } from '../config/api';
-import { AuthResponse, AuthUser, GameAnalysis, GameMode, GameState, Heatmap, MoveScore, RoadThreats } from '../types/game';
+import { AuthResponse, AuthUser, GameAnalysis, GameMode, GameState, Heatmap, MoveScore, Replay, RoadThreats } from '../types/game';
 import { logDebug, logError, logException } from '../utils/logger';
 
 type UnauthorizedHandler = () => void;
@@ -164,6 +164,11 @@ class GotakAPI {
 
   private normalizeAnalysis(raw: any): GameAnalysis {
     return { slug: raw.slug, size: raw.size, moves: raw.moves ?? [], critical_moments: raw.critical_moments ?? [] };
+  }
+
+  async getReplay(slug: string): Promise<Replay> {
+    const response = await this.client.get<Replay>(`/game/${slug}/replay`);
+    return { slug: response.data.slug, size: response.data.size, steps: response.data.steps ?? [] };
   }
 
   getGameLink(slug: string): string {
