@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { UIBoard, UIStone } from '../types/game';
 import { coordsToSquare } from '../utils/ptn';
+import { roadLinks } from '../utils/board';
 import { color, stoneFill } from '../theme';
 import { Stone } from './Stone';
 
@@ -10,6 +11,8 @@ export interface BoardMarks {
   origin?: string;
   inspect?: string;
   last: string[];
+  /** Squares of the winning road, highlighted when the game ends by road. */
+  road?: string[];
   /** Square showing the floating hand, with the count still carried. */
   hand?: { square: string; count: number };
 }
@@ -27,6 +30,8 @@ const GAP = 3;
 const PAD = 6;
 const UNDER_SHOWN = 8;
 
+type Link = { dir: 'l' | 'r' | 'u' | 'd'; player: number; win: boolean };
+
 const Square: React.FC<{
   square: string;
   stones: UIStone[];
@@ -34,9 +39,10 @@ const Square: React.FC<{
   file?: string;
   rank?: string;
   marks: BoardMarks;
+  links: Link[];
   onPress: (square: string) => void;
   onLongPress: (square: string) => void;
-}> = ({ square, stones, tile, file, rank, marks, onPress, onLongPress }) => {
+}> = ({ square, stones, tile, file, rank, marks, links, onPress, onLongPress }) => {
   const top = stones[stones.length - 1];
   const under = stones.slice(0, -1).slice(-UNDER_SHOWN);
   const target = marks.targets.includes(square);
@@ -67,7 +73,26 @@ const Square: React.FC<{
       {last ? <View style={[StyleSheet.absoluteFill, styles.last]} /> : null}
       {isOrigin ? <View style={[StyleSheet.absoluteFill, styles.origin]} /> : null}
       {target ? <View style={[StyleSheet.absoluteFill, styles.target]} /> : null}
+      {marks.road?.includes(square) ? <View style={[StyleSheet.absoluteFill, styles.origin]} /> : null}
       {inspect ? <View style={[StyleSheet.absoluteFill, styles.inspect]} /> : null}
+
+      {links.map((l) => {
+        const t = Math.max(4, tile * (l.win ? 0.14 : 0.1));
+        const h = l.dir === 'l' || l.dir === 'r';
+        return (
+          <View
+            key={l.dir}
+            style={{
+              position: 'absolute',
+              backgroundColor: l.win ? color.accent : stoneFill(l.player),
+              opacity: l.win ? 1 : 0.8,
+              ...(h
+                ? { top: (tile - t) / 2, height: t, left: l.dir === 'r' ? tile / 2 : -1, right: l.dir === 'l' ? tile / 2 : -1 }
+                : { left: (tile - t) / 2, width: t, top: l.dir === 'u' ? -1 : tile / 2, bottom: l.dir === 'd' ? -1 : tile / 2 }),
+            }}
+          />
+        );
+      })}
 
       {rank ? <Text style={[styles.coord, styles.rank]}>{rank}</Text> : null}
       {file ? <Text style={[styles.coord, styles.file]}>{file}</Text> : null}
@@ -106,6 +131,14 @@ const Square: React.FC<{
 
 export const Board: React.FC<Props> = ({ board, width, tilt, marks, onPress, onLongPress }) => {
   const tile = (width - PAD * 2 - GAP * (board.size - 1)) / board.size;
+  const links = new Map<string, Link[]>();
+  const road = new Set(marks.road);
+  for (const { from, to, player } of roadLinks(board)) {
+    const win = road.has(from) && road.has(to);
+    const across = from[1] === to[1];
+    links.set(from, [...(links.get(from) ?? []), { dir: across ? 'r' : 'u', player, win }]);
+    links.set(to, [...(links.get(to) ?? []), { dir: across ? 'l' : 'd', player, win }]);
+  }
   const rows = [];
   for (let y = board.size - 1; y >= 0; y--) {
     const cells = [];
@@ -120,6 +153,7 @@ export const Board: React.FC<Props> = ({ board, width, tilt, marks, onPress, onL
           file={y === 0 ? sq[0] : undefined}
           rank={x === 0 ? String(y + 1) : undefined}
           marks={marks}
+          links={links.get(sq) ?? []}
           onPress={onPress}
           onLongPress={onLongPress}
         />,

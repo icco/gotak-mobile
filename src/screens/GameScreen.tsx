@@ -9,7 +9,7 @@ import { gotakAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { buildPlacementPtn } from '../utils/ptn';
 import { Spread, legalTargets, previewBoard, remaining, spreadPtn, startSpread, tapSpread, undoSpread, currentSquare } from '../utils/spread';
-import { flatCount, lastMoveSquares, moveList, turnNumber } from '../utils/board';
+import { flatCount, lastMoveSquares, moveList, turnNumber, winningRoad } from '../utils/board';
 import { logException } from '../utils/logger';
 import { Board } from '../components/Board';
 import { Banner, HandBar, IconButton, MoveStrip, PlayerBar, StackInspector, StoneTray, TextButton } from '../components/GamePanels';
@@ -242,12 +242,14 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   if (pending) {
     shown = { ...shown, squares: { ...shown.squares, [pending.square]: [{ player: pending.player, type: pending.type }] } };
   }
+  const road = finished && game.winner ? winningRoad(board, game.winner) : [];
   const handSquare = spread ? (currentSquare(spread, board.size) ?? spread.origin) : undefined;
   const marks = {
     targets: spread && me ? legalTargets(board, spread, me) : [],
     origin: spread?.origin,
     inspect: inspect ?? undefined,
     last: lastMoveSquares(game.Turns, board.size),
+    road,
     hand: spread && handSquare ? { square: handSquare, count: remaining(spread) } : undefined,
   };
 
@@ -263,17 +265,18 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     status = { text: 'You are watching this game.' };
   } else if (!status && canAct && firstTurn) {
     status = { text: "First turn: place one of your opponent's flats." };
+  } else if (!status && canAct && turn <= 3 && spread) {
+    status = { text: 'Tap a highlighted square to drop one stone. Tap the stack again to carry fewer.' };
+  } else if (!status && canAct && turn <= 3) {
+    status = { text: 'Tap an empty square to place a stone, or tap your stack to move it. Connect two opposite edges to win.' };
   }
 
+  const how = road.length ? ' by road' : ' on flats';
   const result = !finished
     ? null
     : game.winner === 0
       ? 'Draw'
-      : me
-        ? game.winner === me
-          ? 'You won'
-          : 'You lost'
-        : `${playerName(game.winner)} wins`;
+      : (me ? (game.winner === me ? 'You won' : 'You lost') : `${playerName(game.winner)} wins`) + how;
 
   let panel: React.ReactNode;
   if (result) {
