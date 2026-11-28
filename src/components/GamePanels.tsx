@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PieceType, UIStone } from '../types/game';
 import { color, radius, space, type } from '../theme';
@@ -193,7 +194,7 @@ export const Banner: React.FC<{ text: string; tone?: 'info' | 'error'; action?: 
 );
 
 export const MoveStrip: React.FC<{ moves: { n: number; white?: string; black?: string }[] }> = ({ moves }) => {
-  const ref = useRef<ScrollView>(null);
+  const ref = useRef<ScrollViewInstance>(null);
   if (!moves.length) return null;
   return (
     <ScrollView

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Line, Polyline } from 'react-native-svg';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -98,7 +99,7 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
   const [compared, setCompared] = useState<MoveScore[] | null>(null);
   const [comparing, setComparing] = useState(false);
   const threatCache = useRef(new Map<string, BoardMarks['threats']>());
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
 
   const abort = useRef<AbortController | null>(null);
 
