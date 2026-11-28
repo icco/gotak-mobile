@@ -33,11 +33,14 @@ export const TextButton: React.FC<{
   onPress: () => void;
   primary?: boolean;
   icon?: IconName;
-}> = ({ label, onPress, primary, icon }) => (
+  disabled?: boolean;
+}> = ({ label, onPress, primary, icon, disabled }) => (
   <Pressable
     accessibilityRole="button"
+    accessibilityState={{ disabled }}
+    disabled={disabled}
     onPress={onPress}
-    style={({ pressed }) => [styles.textButton, primary && styles.textButtonPrimary, pressed && styles.dim]}
+    style={({ pressed }) => [styles.textButton, primary && styles.textButtonPrimary, (pressed || disabled) && styles.dim]}
   >
     {icon ? <MaterialCommunityIcons name={icon} size={20} color={primary ? color.onAccent : color.text} /> : null}
     <Text style={[styles.textButtonLabel, primary && { color: color.onAccent }]}>{label}</Text>

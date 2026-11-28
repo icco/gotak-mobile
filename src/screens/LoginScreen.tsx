@@ -78,10 +78,11 @@ export const LoginScreen: React.FC = () => {
 
         {error ? <Banner text={error} tone="error" /> : null}
 
-        <View style={[styles.row, !ready && styles.dim]}>
+        <View style={styles.row}>
           <TextButton
             label={mode === 'login' ? 'Sign in' : 'Create account'}
             primary
+            disabled={!ready}
             onPress={() => void onSubmit()}
           />
         </View>

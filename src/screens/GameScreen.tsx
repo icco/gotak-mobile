@@ -198,6 +198,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     if (tiltPreference !== null) return;
     SecureStore.getItemAsync(TILT_KEY)
       .then((v) => {
+        if (tiltPreference !== null) return;
         tiltPreference = v === '1';
         setTilt(tiltPreference);
       })
