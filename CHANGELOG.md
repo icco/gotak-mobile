@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/icco/gotak-mobile/compare/v1.0.4...v1.1.0) (2026-11-28)
+
+
+### Features
+
+* **game:** rebuild the game screen for touch play ([#92](https://github.com/icco/gotak-mobile/issues/92)) ([3959f33](https://github.com/icco/gotak-mobile/commit/3959f336c177c88be4b4a03687d46f8b1466e58b)), closes [icco/gotak#196](https://github.com/icco/gotak/issues/196)
+
 ## [1.0.4](https://github.com/icco/gotak-mobile/compare/v1.0.3...v1.0.4) (2026-11-27)
 
 ## [1.0.3](https://github.com/icco/gotak-mobile/compare/v1.0.2...v1.0.3) (2026-11-22)
