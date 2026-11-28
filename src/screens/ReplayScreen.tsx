@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
@@ -135,7 +135,11 @@ export const ReplayScreen: React.FC<Props> = ({ navigation, route }) => {
           {step ? `Turn ${step.turn} · ${playerName(step.player)} · ${step.move}` : 'Start'}
           <Text style={type.label}>{`  ${at} / ${last}`}</Text>
         </Text>
-        {step?.comment ? <Banner text={step.comment} /> : null}
+        {step?.comment ? (
+          <ScrollView style={styles.comment}>
+            <Banner text={step.comment} />
+          </ScrollView>
+        ) : null}
       </View>
 
       <View style={styles.bottom}>
@@ -187,6 +191,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 56 },
   headerTitle: { flex: 1, paddingHorizontal: space.xs },
   middle: { flex: 1, justifyContent: 'center', gap: space.md },
+  comment: { flexGrow: 0, maxHeight: 96 },
   caption: { textAlign: 'center', fontVariant: ['tabular-nums'] },
   bottom: { gap: space.sm, paddingBottom: space.xs },
   controls: { flexDirection: 'row', justifyContent: 'space-around' },
