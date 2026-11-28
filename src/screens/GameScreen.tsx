@@ -270,7 +270,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   } else if (!status && canAct && turn <= 3 && spread) {
     status = {
       text: spread.drops.length
-        ? 'Tap a highlighted square to drop the next stone.'
+        ? 'Tap a highlighted square to drop the next stone, or Undo to pick the last one back up.'
         : spread.hand.length > 1
           ? 'Tap a highlighted square to drop a stone. Tap the stack to carry one fewer.'
           : 'Tap a highlighted square to move the stone. Tap it again to cancel.',
