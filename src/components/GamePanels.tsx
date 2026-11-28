@@ -190,6 +190,7 @@ export const MoveStrip: React.FC<{ moves: { n: number; white?: string; black?: s
     <ScrollView
       ref={ref}
       horizontal
+      style={{ flexGrow: 0 }}
       showsHorizontalScrollIndicator={false}
       onContentSizeChange={() => ref.current?.scrollToEnd({ animated: true })}
       contentContainerStyle={styles.moves}

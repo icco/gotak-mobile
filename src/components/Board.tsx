@@ -44,7 +44,7 @@ const Square: React.FC<{
   const last = marks.last.includes(square);
   const inspect = marks.inspect === square;
   const hand = marks.hand?.square === square ? marks.hand.count : 0;
-  const bar = Math.max(3, tile * 0.07);
+  const bar = Math.max(4, tile * 0.08);
 
   const label = top
     ? `${square}, ${stones.length} stone${stones.length > 1 ? 's' : ''}, ${top.player === 1 ? 'white' : 'black'} ${top.type === 'S' ? 'wall' : top.type === 'C' ? 'capstone' : 'flat'} on top`
@@ -77,7 +77,7 @@ const Square: React.FC<{
           {under.map((s, i) => (
             <View
               key={i}
-              style={{ width: tile * 0.13, height: bar, marginTop: 1, borderRadius: 1, backgroundColor: stoneFill(s.player) }}
+              style={{ width: tile * 0.2, height: bar, marginTop: 1, borderRadius: 1, backgroundColor: stoneFill(s.player) }}
             />
           ))}
         </View>
@@ -136,7 +136,7 @@ export const Board: React.FC<Props> = ({ board, width, tilt, marks, onPress, onL
       style={[
         styles.board,
         { width, padding: PAD, gap: GAP },
-        tilt && { transform: [{ perspective: 900 }, { rotateX: '34deg' }, { scale: 0.94 }] },
+        tilt && { transform: [{ perspective: 900 }, { rotateX: '34deg' }, { scale: 0.94 }], elevation: 0, shadowOpacity: 0 },
       ]}
     >
       {rows}
