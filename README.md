@@ -8,7 +8,8 @@ Expo / React Native client for [Tak](https://ustak.org/play-beautiful-game-tak/)
 - Email/password login and registration (JWT stored in SecureStore)
 - New game vs human or vs AI
 - Join game by slug
-- 2D touch board with an optional 3D tilt
+- 2D touch board with an optional 3D tilt that the app remembers
+- How to play rules on the home screen
 - Tap an empty square to place a flat, wall, or capstone; turn 1 places your opponent's flat
 - Tap your stack, then tap squares to drop one stone at a time (tap the origin to carry fewer; undo and cancel mid-move)
 - Legal drop targets, last move, stack counts, and a stack inspector (long-press any square)
