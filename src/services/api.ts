@@ -129,16 +129,17 @@ class GotakAPI {
   }
 
   /** Runs the engine over the whole game. Long games come back 202 with a job to poll. */
-  async analyzeGame(slug: string): Promise<GameAnalysis> {
+  async analyzeGame(slug: string, signal?: AbortSignal): Promise<GameAnalysis> {
     // shortcut: the server answers inline for up to 20s of engine time, so allow that plus network slack.
-    const response = await this.client.post(`/analyze/game/${slug}`, {}, { timeout: 60_000 });
+    const response = await this.client.post(`/analyze/game/${slug}`, {}, { timeout: 60_000, signal });
     if (response.status !== 202) return this.normalizeAnalysis(response.data);
     const statusUrl: string = response.data.status_url;
     const deadline = Date.now() + 10 * 60_000;
     let status: string = response.data.status;
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 3000));
-      const job = (await this.client.get(statusUrl)).data;
+      signal?.throwIfAborted();
+      const job = (await this.client.get(statusUrl, { signal })).data;
       status = job.status;
       if (status === 'done' && job.result) return this.normalizeAnalysis(job.result);
       if (status === 'failed') throw new Error(job.error || 'Analysis failed.');

@@ -5,7 +5,7 @@ import Svg, { Line, Polyline } from 'react-native-svg';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
-import { GameAnalysis, MoveAnalysis, MoveQuality, MoveScore, UIBoard } from '../types/game';
+import { GameAnalysis, MoveAnalysis, MoveQuality, MoveScore, UIBoard, normalizeBoard } from '../types/game';
 import { gotakAPI } from '../services/api';
 import { GRAPH_CLAMP, FLAT, clampScore, formatScore, parseTps } from '../utils/analysis';
 import { logException } from '../utils/logger';
@@ -86,6 +86,7 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
   const { width } = useWindowDimensions();
   const slug = route.params.gameId;
   const [analysis, setAnalysis] = useState<GameAnalysis | null>(null);
+  const [final, setFinal] = useState<UIBoard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState(0);
   const [showThreats, setShowThreats] = useState(false);
@@ -99,11 +100,19 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
   const threatCache = useRef(new Map<string, BoardMarks['threats']>());
   const scroll = useRef<ScrollView>(null);
 
+  const abort = useRef<AbortController | null>(null);
+
   const load = useCallback(async () => {
+    abort.current?.abort();
+    const ac = new AbortController();
+    abort.current = ac;
     setError(null);
     try {
-      setAnalysis(await gotakAPI.analyzeGame(slug));
+      const [result, game] = await Promise.all([gotakAPI.analyzeGame(slug, ac.signal), gotakAPI.getGame(slug)]);
+      setAnalysis(result);
+      setFinal(normalizeBoard(game.Board));
     } catch (e) {
+      if (ac.signal.aborted) return;
       logException(toError(e), { method: 'analyzeGame' });
       setError(gotakAPI.formatError(e, 'Could not analyze this game.'));
     }
@@ -112,12 +121,15 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch; setState runs after await
     void load();
+    return () => abort.current?.abort();
   }, [load]);
 
   const move = analysis?.moves[selected];
   const tps = move?.tps;
 
+  const atFinal = !!analysis && selected === analysis.moves.length;
   const board: UIBoard | null = useMemo(() => {
+    if (atFinal) return final;
     if (!tps) return null;
     try {
       return parseTps(tps);
@@ -125,7 +137,7 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
       logException(toError(e), { method: 'parseTps', tps });
       return null;
     }
-  }, [tps]);
+  }, [tps, atFinal, final]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- a new position clears the last comparison
@@ -242,7 +254,7 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
       ) : (
         <ScrollView ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <EvalGraph moves={analysis.moves} width={contentWidth} selected={selected} onSelect={setSelected} />
+          <EvalGraph moves={analysis.moves} width={contentWidth} selected={Math.min(selected, analysis.moves.length - 1)} onSelect={setSelected} />
 
           {analysis.critical_moments.length ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
@@ -291,9 +303,13 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
                 </>
               )}
             </View>
+          ) : atFinal ? (
+            <View style={styles.panel} accessibilityLiveRegion="polite">
+              <Text style={type.body}>Final position</Text>
+            </View>
           ) : null}
 
-          {notice ? <Banner text={notice} tone="error" /> : null}
+          {notice ?<Banner text={notice} tone="error" /> : null}
 
           <View style={styles.row}>
             <TextInput
@@ -336,6 +352,17 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
                 {!m.agreed && m.best ? <Text style={[type.small, styles.mono]}>best {m.best}</Text> : null}
               </Pressable>
             ))}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: atFinal }}
+              onPress={() => {
+                setSelected(analysis.moves.length);
+                scroll.current?.scrollTo({ y: 0, animated: true });
+              }}
+              style={({ pressed }) => [styles.moveRow, atFinal && styles.moveRowOn, pressed && styles.dim]}
+            >
+              <Text style={[type.body, { flex: 1 }]}>Final position</Text>
+            </Pressable>
           </View>
         </ScrollView>
       )}
