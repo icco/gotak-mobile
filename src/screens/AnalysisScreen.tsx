@@ -22,11 +22,11 @@ const GRAPH_HEIGHT = 120;
 const toError = (e: unknown) => (e instanceof Error ? e : new Error(String(e)));
 
 const QUALITY_COLOR: Record<MoveQuality, string> = {
-  best: color.text,
+  best: color.textDim,
   good: color.textDim,
-  inaccuracy: color.accent,
-  mistake: color.danger,
-  blunder: color.danger,
+  inaccuracy: color.text,
+  mistake: color.text,
+  blunder: color.text,
 };
 
 /** score_after per move, White up; moves the engine could not score leave gaps. */
@@ -97,6 +97,7 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
   const [compared, setCompared] = useState<MoveScore[] | null>(null);
   const [comparing, setComparing] = useState(false);
   const threatCache = useRef(new Map<string, BoardMarks['threats']>());
+  const scroll = useRef<ScrollView>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -240,7 +241,7 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={type.body}>No moves to analyze.</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <EvalGraph moves={analysis.moves} width={contentWidth} selected={selected} onSelect={setSelected} />
 
           {analysis.critical_moments.length ? (
@@ -324,7 +325,10 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
                 key={i}
                 accessibilityRole="button"
                 accessibilityState={{ selected: selected === i }}
-                onPress={() => setSelected(i)}
+                onPress={() => {
+                  setSelected(i);
+                  scroll.current?.scrollTo({ y: 0, animated: true });
+                }}
                 style={({ pressed }) => [styles.moveRow, selected === i && styles.moveRowOn, pressed && styles.dim]}
               >
                 <Text style={[type.body, styles.mono, { flex: 1 }]}>{moveLabel(m)}</Text>

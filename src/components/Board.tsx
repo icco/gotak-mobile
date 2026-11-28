@@ -3,7 +3,7 @@ import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View 
 import { UIBoard, UIStone } from '../types/game';
 import { coordsToSquare, squareToCoords } from '../utils/ptn';
 import { roadLinks } from '../utils/board';
-import { color, stoneFill } from '../theme';
+import { color, stoneEdge, stoneFill } from '../theme';
 import { Stone } from './Stone';
 
 export interface BoardMarks {
@@ -114,7 +114,7 @@ const Square: React.FC<{
         pressed && styles.pressed,
       ]}
     >
-      {heat ? <View style={[StyleSheet.absoluteFill, { backgroundColor: color.accent, opacity: heat * 0.6 }]} /> : null}
+      {heat ? <View style={[StyleSheet.absoluteFill, { backgroundColor: color.text, opacity: heat * 0.45 }]} /> : null}
       {last ? <View style={[StyleSheet.absoluteFill, styles.last]} /> : null}
       {isOrigin ? <View style={[StyleSheet.absoluteFill, styles.origin]} /> : null}
       {target ? <View style={[StyleSheet.absoluteFill, styles.target]} /> : null}
@@ -160,7 +160,7 @@ const Square: React.FC<{
       ) : threat.length ? (
         <View style={styles.threats}>
           {threat.map((p) => (
-            <View key={p} style={[styles.threat, { width: tile * 0.26, height: tile * 0.26, backgroundColor: stoneFill(p) }]} />
+            <View key={p} style={[styles.threat, { width: tile * 0.26, height: tile * 0.26, backgroundColor: stoneFill(p), borderColor: stoneEdge(p) }]} />
           ))}
         </View>
       ) : target ? (
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   target: { borderWidth: 3, borderColor: color.accent, borderRadius: 4 },
   inspect: { borderWidth: 2, borderColor: color.text, borderRadius: 4 },
   threats: { flexDirection: 'row', gap: 2 },
-  threat: { borderRadius: 999, borderWidth: 2, borderColor: color.danger },
+  threat: { borderRadius: 999, borderWidth: 2 },
   dot: { borderRadius: 999, backgroundColor: color.accent, opacity: 0.9 },
   coord: { position: 'absolute', fontSize: 11, fontWeight: '700', color: 'rgba(15, 21, 19, 0.8)' },
   rank: { top: 2, left: 4 },
