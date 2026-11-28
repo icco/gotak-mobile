@@ -124,7 +124,7 @@ class GotakAPI {
       level,
       style,
       time_limit: timeLimitNs,
-    });
+    }, { timeout: timeLimitNs / 1_000_000 + 20_000 });
     return this.normalizeGame(response.data);
   }
 
@@ -169,6 +169,9 @@ class GotakAPI {
   }
 
   formatError(error: unknown, fallback: string): string {
+    if (isAxiosError(error) && !error.response) {
+      return 'Could not reach the server. Check your connection and try again.';
+    }
     if (isAxiosError(error)) {
       const data = error.response?.data as { error?: string; message?: string } | undefined;
       return data?.error || data?.message || error.message || fallback;

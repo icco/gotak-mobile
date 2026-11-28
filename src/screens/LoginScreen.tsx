@@ -4,13 +4,14 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { gotakAPI } from '../services/api';
+import { color, radius } from '../theme';
 
 export const LoginScreen: React.FC = () => {
   const { login, register } = useAuth();
@@ -52,7 +53,7 @@ export const LoginScreen: React.FC = () => {
           <TextInput
             style={styles.input}
             placeholder="Name"
-            placeholderTextColor="#95a5a6"
+            placeholderTextColor={color.textDim}
             autoCapitalize="words"
             value={name}
             onChangeText={setName}
@@ -62,7 +63,7 @@ export const LoginScreen: React.FC = () => {
         <TextInput
           style={styles.input}
           placeholder="Email"
-          placeholderTextColor="#95a5a6"
+          placeholderTextColor={color.textDim}
           autoCapitalize="none"
           keyboardType="email-address"
           autoComplete="email"
@@ -73,7 +74,7 @@ export const LoginScreen: React.FC = () => {
         <TextInput
           style={styles.input}
           placeholder="Password"
-          placeholderTextColor="#95a5a6"
+          placeholderTextColor={color.textDim}
           secureTextEntry
           value={password}
           onChangeText={setPassword}
@@ -87,7 +88,7 @@ export const LoginScreen: React.FC = () => {
           disabled={busy || !email || password.length < 8}
         >
           {busy ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={color.onAccent} />
           ) : (
             <Text style={styles.buttonText}>
               {mode === 'login' ? 'Sign In' : 'Create Account'}
@@ -115,7 +116,7 @@ export const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2c3e50',
+    backgroundColor: color.ground,
   },
   content: {
     flex: 1,
@@ -124,47 +125,48 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 48,
-    fontWeight: 'bold',
-    color: '#ecf0f1',
+    fontWeight: '700',
+    letterSpacing: -1,
+    color: color.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#bdc3c7',
+    color: color.textDim,
     textAlign: 'center',
     marginBottom: 32,
   },
   input: {
-    backgroundColor: '#34495e',
-    color: '#ecf0f1',
-    borderRadius: 8,
+    backgroundColor: color.surface,
+    color: color.text,
+    borderRadius: radius.md,
     padding: 14,
     marginBottom: 12,
     fontSize: 16,
   },
   button: {
-    backgroundColor: '#3498db',
+    backgroundColor: color.accent,
     padding: 16,
-    borderRadius: 8,
+    borderRadius: radius.md,
     alignItems: 'center',
     marginTop: 8,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.45,
   },
   buttonText: {
-    color: '#fff',
+    color: color.onAccent,
     fontSize: 18,
     fontWeight: '600',
   },
   switchText: {
-    color: '#bdc3c7',
+    color: color.textDim,
     textAlign: 'center',
     marginTop: 20,
   },
   error: {
-    color: '#e74c3c',
+    color: color.danger,
     marginBottom: 8,
     textAlign: 'center',
   },

@@ -1,114 +1,89 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  Alert,
-  TouchableOpacity,
-  Share,
-  AppState,
-  ActivityIndicator,
-} from 'react-native';
+import { ActivityIndicator, AppState, Platform, Share, StyleSheet, Text, useWindowDimensions, Vibration, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
-import {
-  GameState,
-  PieceType,
-  normalizeBoard,
-  remainingPieces,
-  UIBoard,
-} from '../types/game';
+import { GameState, PieceType, normalizeBoard, remainingPieces, UIBoard } from '../types/game';
 import { gotakAPI } from '../services/api';
-import { IsometricBoard } from '../components/IsometricBoard';
-import { PieceInventory } from '../components/PieceInventory';
 import { useAuth } from '../context/AuthContext';
-import {
-  buildPlacementPtn,
-  buildStackSlidePtn,
-  coordsToSquare,
-  directionBetween,
-  isAdjacent,
-} from '../utils/ptn';
+import { buildPlacementPtn } from '../utils/ptn';
+import { Spread, legalTargets, previewBoard, remaining, spreadPtn, startSpread, tapSpread, undoSpread, currentSquare } from '../utils/spread';
+import { flatCount, lastMoveSquares, moveList, turnNumber } from '../utils/board';
 import { logException } from '../utils/logger';
-
-type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
-type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
+import { Board } from '../components/Board';
+import { Banner, HandBar, IconButton, MoveStrip, PlayerBar, StackInspector, StoneTray, TextButton } from '../components/GamePanels';
+import { color, playerName, space, type } from '../theme';
 
 interface Props {
-  navigation: GameScreenNavigationProp;
-  route: GameScreenRouteProp;
+  navigation: StackNavigationProp<RootStackParamList, 'Game'>;
+  route: RouteProp<RootStackParamList, 'Game'>;
 }
+
+type BannerState = { text: string; tone?: 'info' | 'error'; action?: { label: string; onPress: () => void } } | null;
+
+const PIECE_CODE: Record<PieceType, string> = { flat: 'F', standing: 'S', capstone: 'C' };
+
+// shortcut: Vibration on iOS ignores duration and buzzes for 400ms, so haptics are Android-only until expo-haptics is added.
+const tick = (ms = 8) => {
+  if (Platform.OS === 'android') Vibration.vibrate(ms);
+};
+
+// shortcut: tilt preference lives for the app session only; persist it if players ask.
+let tiltPreference = false;
+
+const toError = (e: unknown) => (e instanceof Error ? e : new Error(String(e)));
 
 export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   const { user } = useAuth();
-  const [gameState, setGameState] = useState<GameState | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedPieceType, setSelectedPieceType] = useState<PieceType | undefined>();
-  const [selectedStack, setSelectedStack] = useState<string | null>(null);
-  const [stackCount, setStackCount] = useState(1);
+  const { width, height } = useWindowDimensions();
+  const [game, setGame] = useState<GameState | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<PieceType>('flat');
+  const [spread, setSpread] = useState<Spread | null>(null);
+  const [pending, setPending] = useState<{ square: string; type: string; player: number } | null>(null);
+  const [inspect, setInspect] = useState<string | null>(null);
+  const [banner, setBanner] = useState<BannerState>(null);
   const [busy, setBusy] = useState(false);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [aiAttempt, setAiAttempt] = useState(0);
+  const [tilt, setTilt] = useState(tiltPreference);
   const appActive = useRef(true);
   const requestingAi = useRef(false);
+  const slug = route.params?.gameId;
 
-  const board: UIBoard | null = useMemo(
-    () => (gameState ? normalizeBoard(gameState.Board) : null),
-    [gameState],
-  );
+  const board: UIBoard | null = useMemo(() => (game ? normalizeBoard(game.Board) : null), [game]);
 
-  const myPlayer = useMemo(() => {
-    if (!gameState || !user) return null;
-    if (gameState.white_player_id === user.id) return 1;
-    if (gameState.black_player_id === user.id) return 2;
-    // AI games: creator is white and black_player_id is unset
-    if (gameState.mode === 'ai' && gameState.white_player_id === user.id) return 1;
+  const me = useMemo(() => {
+    if (!game || !user) return null;
+    if (game.white_player_id === user.id) return 1;
+    if (game.black_player_id === user.id) return 2;
     return null;
-  }, [gameState, user]);
+  }, [game, user]);
+  const them = me === 2 ? 1 : 2;
 
-  const currentTurnNumber = useMemo(() => {
-    if (!gameState?.Turns?.length) return 1;
-    const last = gameState.Turns[gameState.Turns.length - 1];
-    if (last.First && !last.Second) return last.Number;
-    return last.Number + 1;
-  }, [gameState]);
-
+  const turn = game ? turnNumber(game.Turns) : 1;
+  const firstTurn = turn === 1;
+  const finished = game?.status === 'finished';
   const canAct =
-    !!gameState &&
-    !!myPlayer &&
-    gameState.status !== 'finished' &&
-    gameState.current_player === myPlayer &&
-    (gameState.mode === 'ai' || gameState.status === 'active');
-
-  const inventory = useMemo(() => {
-    if (!board || !myPlayer) {
-      return { flat: 0, standing: 0, capstone: 0 };
-    }
-    return remainingPieces(board, myPlayer);
-  }, [board, myPlayer]);
+    !!game && !!me && !finished && game.current_player === me && (game.mode === 'ai' || game.status === 'active');
 
   const loadGame = useCallback(async () => {
-    const slug = route.params?.gameId;
     if (!slug) {
-      Alert.alert('Error', 'Missing game id');
-      navigation.goBack();
+      setLoadError('This game link is missing its id.');
       return;
     }
     try {
-      const game = await gotakAPI.getGame(slug);
-      setGameState(game);
+      setGame(await gotakAPI.getGame(slug));
+      setLoadError(null);
     } catch (error) {
-      logException(error instanceof Error ? error : new Error(String(error)), {
-        method: 'loadGame',
-      });
-      Alert.alert('Error', gotakAPI.formatError(error, 'Failed to load game'));
-    } finally {
-      setLoading(false);
+      logException(toError(error), { method: 'loadGame' });
+      setLoadError(gotakAPI.formatError(error, 'Could not load the game.'));
     }
-  }, [navigation, route.params?.gameId]);
+  }, [slug]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch; setState runs after await, not synchronously
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch; setState runs after await
     void loadGame();
   }, [loadGame]);
 
@@ -119,315 +94,278 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     return () => sub.remove();
   }, []);
 
-  // Poll for opponent moves in human games
   useEffect(() => {
-    if (!gameState || gameState.mode !== 'human') return;
-    if (gameState.status === 'finished') return;
-
-    const waitingForOpponent =
-      gameState.status === 'waiting' ||
-      (myPlayer != null && gameState.current_player !== myPlayer);
-
-    if (!waitingForOpponent) return;
-
+    if (!game || game.mode !== 'human' || finished) return;
+    const waiting = game.status === 'waiting' || (me != null && game.current_player !== me);
+    if (!waiting) return;
     const id = setInterval(() => {
       if (!appActive.current) return;
-      void gotakAPI
-        .getGame(gameState.Slug)
-        .then(setGameState)
-        .catch((error) => {
-          logException(error instanceof Error ? error : new Error(String(error)), {
-            method: 'pollGame',
-          });
-        });
+      gotakAPI
+        .getGame(game.Slug)
+        .then(setGame)
+        .catch((error) => logException(toError(error), { method: 'pollGame' }));
     }, 2000);
-
     return () => clearInterval(id);
-  }, [gameState, myPlayer]);
+  }, [game, me, finished]);
 
-  // Trigger AI move when it's the AI's turn
   useEffect(() => {
-    if (!gameState || gameState.mode !== 'ai') return;
-    if (gameState.status === 'finished') return;
-    if (!myPlayer) return;
-    if (gameState.current_player === myPlayer) return;
-    if (requestingAi.current) return;
-
+    if (!game || game.mode !== 'ai' || finished || !me) return;
+    if (game.current_player === me || requestingAi.current) return;
     requestingAi.current = true;
-    void gotakAPI
-      .requestAiMove(gameState.Slug)
-      .then((updated) => setGameState(updated))
+    setAiThinking(true);
+    gotakAPI
+      .requestAiMove(game.Slug)
+      .then((updated) => {
+        setGame(updated);
+        tick(15);
+      })
       .catch((error) => {
-        Alert.alert('AI Error', gotakAPI.formatError(error, 'AI move failed'));
+        logException(toError(error), { method: 'requestAiMove' });
+        setBanner({
+          text: gotakAPI.formatError(error, 'The AI did not answer.'),
+          tone: 'error',
+          action: { label: 'Retry', onPress: () => { setBanner(null); setAiAttempt((n) => n + 1); } },
+        });
       })
       .finally(() => {
         requestingAi.current = false;
+        setAiThinking(false);
       });
-  }, [gameState, myPlayer]);
+  }, [game, me, finished, aiAttempt]);
 
-  const submitMove = async (ptn: string) => {
-    if (!gameState || !myPlayer) return;
+  const submit = async (ptn: string) => {
+    if (!game || !me) return;
     setBusy(true);
+    setBanner(null);
     try {
-      const updated = await gotakAPI.makeMove(
-        gameState.Slug,
-        ptn,
-        myPlayer,
-        currentTurnNumber,
-      );
-      setGameState(updated);
-      setSelectedPieceType(undefined);
-      setSelectedStack(null);
-      setStackCount(1);
+      const updated = await gotakAPI.makeMove(game.Slug, ptn, me, turn);
+      setGame(updated);
+      setSelected('flat');
+      tick(20);
     } catch (error) {
-      Alert.alert('Invalid move', gotakAPI.formatError(error, 'Move rejected'));
+      setBanner({ text: gotakAPI.formatError(error, 'The server rejected that move.'), tone: 'error' });
     } finally {
+      setSpread(null);
+      setPending(null);
       setBusy(false);
     }
   };
 
-  const handleSquarePress = (x: number, y: number) => {
-    if (!board || !gameState || !myPlayer || !canAct || busy) return;
-    const square = coordsToSquare(x, y);
-    const stones = board.squares[square] || [];
-
-    // Placement
-    if (selectedPieceType) {
-      if (stones.length > 0) {
-        Alert.alert('Occupied', 'Choose an empty square to place a piece.');
-        return;
-      }
-      void submitMove(buildPlacementPtn(square, selectedPieceType));
+  const onPress = (square: string) => {
+    if (!board) return;
+    const stones = board.squares[square] ?? [];
+    if (!canAct || busy || !me) {
+      setInspect(stones.length && inspect !== square ? square : null);
       return;
     }
-
-    // Stack selection / slide
-    if (selectedStack) {
-      if (selectedStack === square) {
-        setSelectedStack(null);
+    if (spread) {
+      const next = tapSpread(board, spread, square, me);
+      if (next === spread) {
+        setBanner({ text: 'Drop on a highlighted square, or tap Cancel.' });
         return;
       }
-      if (!isAdjacent(selectedStack, square)) {
-        Alert.alert('Stack move', 'Tap an orthogonally adjacent square.');
+      setBanner(null);
+      tick();
+      if (!next) {
+        setSpread(null);
         return;
       }
-      const dir = directionBetween(selectedStack, square);
-      if (!dir) return;
-      void submitMove(buildStackSlidePtn(selectedStack, dir, stackCount));
+      setSpread(next);
+      const ptn = spreadPtn(next);
+      if (ptn) void submit(ptn);
       return;
     }
-
-    // Select own stack (top stone must be ours)
-    if (stones.length === 0) return;
-    const top = stones[stones.length - 1];
-    if (top.player !== myPlayer) return;
-    const maxCarry = Math.min(stones.length, board.size);
-    setSelectedStack(square);
-    setStackCount(maxCarry);
-    setSelectedPieceType(undefined);
+    setInspect(null);
+    if (stones.length === 0) {
+      const piece = firstTurn ? 'flat' : selected;
+      setPending({ square, type: PIECE_CODE[piece], player: firstTurn ? them : me });
+      tick();
+      void submit(buildPlacementPtn(square, piece));
+      return;
+    }
+    const started = firstTurn ? null : startSpread(board, square, me);
+    if (started) {
+      tick();
+      setBanner(null);
+      setSpread(started);
+    } else {
+      setInspect(square);
+    }
   };
 
-  const handleShareGame = async () => {
-    if (!gameState) return;
+  const toggleTilt = () => {
+    tiltPreference = !tilt;
+    setTilt(tiltPreference);
+  };
+
+  const share = async () => {
+    if (!game) return;
     try {
-      const link = gotakAPI.getGameLink(gameState.Slug);
-      await Share.share({
-        message: `Join my Tak game (${gameState.Slug}): ${link}`,
-        url: link,
-      });
+      const link = gotakAPI.getGameLink(game.Slug);
+      await Share.share({ message: `Play Tak with me: ${link} (game ${game.Slug})`, url: link });
     } catch (error) {
-      logException(error instanceof Error ? error : new Error(String(error)), {
-        method: 'handleShareGame',
-      });
+      logException(toError(error), { method: 'share' });
     }
   };
 
-  if (loading) {
+  const rematch = async () => {
+    if (!board || !game) return;
+    setBusy(true);
+    try {
+      const next = await gotakAPI.createGame(board.size, game.mode);
+      navigation.replace('Game', { gameId: next.Slug, mode: game.mode });
+    } catch (error) {
+      setBanner({ text: gotakAPI.formatError(error, 'Could not start a new game.'), tone: 'error' });
+      setBusy(false);
+    }
+  };
+
+  if (!game || !board) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centered}>
-          <ActivityIndicator color="#fff" size="large" />
-          <Text style={styles.loadingText}>Loading game...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!gameState || !board) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centered}>
-          <Text style={styles.loadingText}>Failed to load game</Text>
-          <TouchableOpacity style={styles.shareButton} onPress={() => void loadGame()}>
-            <Text style={styles.shareButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const statusLabel =
-    gameState.status === 'finished'
-      ? `Finished — winner: ${gameState.winner === 1 ? 'White' : gameState.winner === 2 ? 'Black' : 'draw/flat'}`
-      : gameState.status === 'waiting'
-        ? 'Waiting for opponent'
-        : canAct
-          ? 'Your turn'
-          : 'Opponent turn';
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.gameTitle}>{gameState.Slug}</Text>
-        <TouchableOpacity style={styles.shareButton} onPress={() => void handleShareGame()}>
-          <Text style={styles.shareButtonText}>Share</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.gameInfo}>
-        <Text style={styles.infoText}>{statusLabel}</Text>
-        <Text style={styles.infoText}>
-          Mode: {gameState.mode} · You: {myPlayer === 1 ? 'White' : myPlayer === 2 ? 'Black' : '?'}
-        </Text>
-        <Text style={styles.infoText}>
-          Turn {currentTurnNumber} · To move: {gameState.current_player === 1 ? 'White' : 'Black'}
-        </Text>
-        {selectedStack ? (
-          <View style={styles.stackControls}>
-            <Text style={styles.infoText}>Moving {stackCount} from {selectedStack}</Text>
-            <View style={styles.stackButtons}>
-              <TouchableOpacity
-                style={styles.tinyButton}
-                onPress={() => setStackCount((c) => Math.max(1, c - 1))}
-              >
-                <Text style={styles.tinyButtonText}>-</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.tinyButton}
-                onPress={() => {
-                  const stones = board.squares[selectedStack] || [];
-                  const maxCarry = Math.min(stones.length, board.size);
-                  setStackCount((c) => Math.min(maxCarry, c + 1));
-                }}
-              >
-                <Text style={styles.tinyButtonText}>+</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.tinyButton}
-                onPress={() => setSelectedStack(null)}
-              >
-                <Text style={styles.tinyButtonText}>Cancel</Text>
-              </TouchableOpacity>
+      <SafeAreaView style={[styles.screen, styles.centered]}>
+        {loadError ? (
+          <View style={styles.loadError}>
+            <Text style={type.body}>{loadError}</Text>
+            <View style={styles.actions}>
+              <TextButton label="Back" onPress={() => navigation.goBack()} />
+              <TextButton label="Try again" primary onPress={() => void loadGame()} />
             </View>
           </View>
+        ) : (
+          <ActivityIndicator color={color.accent} size="large" />
+        )}
+      </SafeAreaView>
+    );
+  }
+
+  let shown = spread ? previewBoard(board, spread) : board;
+  if (pending) {
+    shown = { ...shown, squares: { ...shown.squares, [pending.square]: [{ player: pending.player, type: pending.type }] } };
+  }
+  const handSquare = spread ? (currentSquare(spread, board.size) ?? spread.origin) : undefined;
+  const marks = {
+    targets: spread && me ? legalTargets(board, spread, me) : [],
+    origin: spread?.origin,
+    inspect: inspect ?? undefined,
+    last: lastMoveSquares(game.Turns, board.size),
+    hand: spread && handSquare ? { square: handSquare, count: remaining(spread) } : undefined,
+  };
+
+  const mine = me ? remainingPieces(board, me) : null;
+  const theirs = remainingPieces(board, them);
+  const opponentName = game.mode === 'ai' ? 'Computer' : me ? 'Opponent' : playerName(them);
+  const boardWidth = Math.max(260, Math.min(width - space.lg, height - 420, 600));
+
+  let status: BannerState = banner;
+  if (!status && game.status === 'waiting' && game.mode === 'human') {
+    status = { text: 'Waiting for someone to join.', action: { label: 'Invite', onPress: () => void share() } };
+  } else if (!status && !me) {
+    status = { text: 'You are watching this game.' };
+  } else if (!status && canAct && firstTurn) {
+    status = { text: "First turn: place one of your opponent's flats." };
+  }
+
+  const result = !finished
+    ? null
+    : game.winner === 0
+      ? 'Draw'
+      : me
+        ? game.winner === me
+          ? 'You won'
+          : 'You lost'
+        : `${playerName(game.winner)} wins`;
+
+  let panel: React.ReactNode;
+  if (result) {
+    panel = (
+      <View style={styles.result}>
+        <Text style={type.title}>{result}</Text>
+        <View style={styles.actions}>
+          <TextButton label="Home" onPress={() => navigation.goBack()} />
+          {me ? <TextButton label="Rematch" primary onPress={() => void rematch()} /> : null}
+        </View>
+      </View>
+    );
+  } else if (spread) {
+    panel = (
+      <HandBar
+        hand={spread.hand}
+        remaining={remaining(spread)}
+        ptn={`${spread.hand.length > 1 ? spread.hand.length : ''}${spread.origin}${spread.dir ?? ''}${spread.drops.join('')}`}
+        onUndo={() => setSpread(undoSpread(spread))}
+        onCancel={() => setSpread(null)}
+      />
+    );
+  } else if (inspect) {
+    panel = <StackInspector square={inspect} stones={board.squares[inspect] ?? []} onClose={() => setInspect(null)} />;
+  } else if (me && mine) {
+    panel = (
+      <StoneTray
+        player={firstTurn ? them : me}
+        counts={{ flat: mine.flat, standing: mine.standing, capstone: mine.capstone }}
+        selected={selected}
+        onSelect={setSelected}
+        flatOnly={firstTurn}
+        disabled={!canAct || busy}
+      />
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom', 'left', 'right']}>
+      <View style={styles.header}>
+        <IconButton icon="arrow-left" label="Back to games" onPress={() => navigation.goBack()} />
+        <View style={styles.headerTitle}>
+          <Text style={type.title}>
+            {board.size}×{board.size} {game.mode === 'ai' ? 'vs computer' : 'vs friend'}
+          </Text>
+          <Text style={type.small}>Turn {turn} · {game.Slug}</Text>
+        </View>
+        <IconButton icon="video-3d" label="3D board" active={tilt} onPress={toggleTilt} />
+        {game.mode === 'human' ? <IconButton icon="share-variant" label="Share game" onPress={() => void share()} /> : null}
+      </View>
+
+      <PlayerBar
+        player={them}
+        name={opponentName}
+        flats={theirs.flat}
+        caps={theirs.capstone}
+        onBoard={flatCount(board, them)}
+        toMove={!finished && game.current_player === them}
+        thinking={aiThinking}
+      />
+
+      <View style={styles.middle}>
+        <Board board={shown} width={boardWidth} tilt={tilt} marks={marks} onPress={onPress} onLongPress={setInspect} />
+        <MoveStrip moves={moveList(game.Turns)} />
+      </View>
+
+      <View style={styles.bottom}>
+        {status ? <Banner {...status} /> : null}
+        {panel}
+        {me && mine ? (
+          <PlayerBar
+            player={me}
+            name={user?.name || 'You'}
+            flats={mine.flat}
+            caps={mine.capstone}
+            onBoard={flatCount(board, me)}
+            toMove={!finished && game.current_player === me}
+          />
         ) : null}
       </View>
-
-      <View style={styles.gameArea}>
-        <IsometricBoard
-          board={board}
-          selectedPieceType={selectedPieceType}
-          selectedSquare={selectedStack ?? undefined}
-          onSquarePress={handleSquarePress}
-        />
-
-        <PieceInventory
-          pieces={inventory}
-          color={myPlayer === 2 ? 'black' : 'white'}
-          selectedPieceType={selectedPieceType}
-          onPieceSelect={(type) => {
-            setSelectedPieceType(type);
-            setSelectedStack(null);
-          }}
-        />
-      </View>
-
-      {busy ? (
-        <View style={styles.busyOverlay}>
-          <ActivityIndicator color="#fff" />
-        </View>
-      ) : null}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#2c3e50',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#ecf0f1',
-    marginTop: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backText: {
-    color: '#3498db',
-    fontSize: 16,
-  },
-  gameTitle: {
-    color: '#ecf0f1',
-    fontSize: 16,
-    fontWeight: '600',
-    maxWidth: '50%',
-  },
-  shareButton: {
-    backgroundColor: '#3498db',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  shareButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  gameInfo: {
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  infoText: {
-    color: '#bdc3c7',
-    marginBottom: 4,
-  },
-  gameArea: {
-    flex: 1,
-    paddingHorizontal: 8,
-  },
-  stackControls: {
-    marginTop: 8,
-  },
-  stackButtons: {
-    flexDirection: 'row',
-    marginTop: 4,
-  },
-  tinyButton: {
-    backgroundColor: '#34495e',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  tinyButtonText: {
-    color: '#ecf0f1',
-  },
-  busyOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  screen: { flex: 1, backgroundColor: color.ground, paddingHorizontal: space.sm },
+  centered: { alignItems: 'center', justifyContent: 'center' },
+  loadError: { gap: space.lg, padding: space.xl, alignSelf: 'stretch' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 56 },
+  headerTitle: { flex: 1, paddingHorizontal: space.xs },
+  middle: { flex: 1, justifyContent: 'center', gap: space.md },
+  bottom: { gap: space.sm, paddingBottom: space.xs },
+  result: { gap: space.md, alignItems: 'center', paddingVertical: space.sm },
+  actions: { flexDirection: 'row', gap: space.sm, alignSelf: 'stretch' },
 });

@@ -8,9 +8,11 @@ Expo / React Native client for [Tak](https://ustak.org/play-beautiful-game-tak/)
 - Email/password login and registration (JWT stored in SecureStore)
 - New game vs human or vs AI
 - Join game by slug
-- Isometric board with stacks
-- Place flat / standing / capstone (PTN)
-- Stack slides to adjacent squares
+- 2D touch board with an optional 3D tilt
+- Tap an empty square to place a flat, wall, or capstone; turn 1 places your opponent's flat
+- Tap your stack, then tap squares to drop one stone at a time (tap the origin to carry fewer; undo and cancel mid-move)
+- Legal drop targets, last move, stack counts, and a stack inspector (long-press any square)
+- Both players' reserves and flat counts, move list, inline errors
 - Human games poll for opponent moves
 - AI games call `/ai-move` after your turn
 - Share game link
@@ -20,6 +22,8 @@ Expo / React Native client for [Tak](https://ustak.org/play-beautiful-game-tak/)
 - Offline mode
 - Spectating / WebSockets
 - Drag-and-drop gestures
+- Road highlighting
+- iOS haptics
 - App Store / Play Store release builds
 
 ## Setup
@@ -59,8 +63,8 @@ NODE_ENV=production EXPO_PUBLIC_API_URL=https://gotak.app ./gradlew assembleRele
 
 Install `android/app/build/outputs/apk/release/app-release.apk`. This release-mode
 APK contains its JavaScript bundle and does not require Metro or Expo Go.
-The production package ID is `app.gotak.mobile` (display name **Gotak**).
-It installs separately from the old `com.anonymous.gotakmobile` test app.
+The production package ID is `com.timeclimbers.gotak` (display name **Gotak**).
+It installs separately from the older `app.gotak.mobile` and `com.anonymous.gotakmobile` builds.
 The config plugin in `plugins/` installs production signing on every prebuild.
 Release tasks require `ANDROID_KEYSTORE_PATH`, `ANDROID_STORE_PASSWORD`,
 `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`; missing credentials fail the
@@ -98,8 +102,8 @@ native `AnyTypeCache` class-not-found crash before JavaScript starts.
 
 ## Project structure
 
-- `src/components/` — board and inventory UI
+- `src/components/` — board, stones, and game panels
 - `src/screens/` — login, home, game
 - `src/services/` — API client and SecureStore auth
 - `src/context/` — auth session
-- `src/utils/` — PTN helpers
+- `src/utils/` — PTN, spread state machine, and board helpers

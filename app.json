@@ -13,7 +13,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.timeclimbers.gotak"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +22,7 @@
         "backgroundColor": "#243247",
         "monochromeImage": "./assets/android-icon/monochrome.png"
       },
-      "package": "app.gotak.mobile",
+      "package": "com.timeclimbers.gotak",
       "versionCode": 1000004
     },
     "plugins": [
