@@ -1,7 +1,7 @@
 import axios, { isAxiosError } from 'axios';
 import type { AxiosInstance } from 'axios';
 import { API_CONFIG } from '../config/api';
-import { AuthResponse, AuthUser, GameMode, GameState } from '../types/game';
+import { AuthResponse, AuthUser, GameMode, GameState, Replay } from '../types/game';
 import { logDebug, logError, logException } from '../utils/logger';
 
 type UnauthorizedHandler = () => void;
@@ -134,6 +134,11 @@ class GotakAPI {
     // React Native takes headers as a third argument; the DOM typings in scope only know two.
     const RNWebSocket = WebSocket as unknown as new (u: string, p: null, o: { headers: Record<string, string> }) => WebSocket;
     return new RNWebSocket(url, null, { headers: this.token ? { Authorization: `Bearer ${this.token}` } : {} });
+  }
+
+  async getReplay(slug: string): Promise<Replay> {
+    const response = await this.client.get<Replay>(`/game/${slug}/replay`);
+    return { slug: response.data.slug, size: response.data.size, steps: response.data.steps ?? [] };
   }
 
   getGameLink(slug: string): string {
