@@ -9,8 +9,8 @@ export const GRAPH_CLAMP = 3000;
 export const clampScore = (score: number) => Math.max(-GRAPH_CLAMP, Math.min(GRAPH_CLAMP, score));
 
 export function formatScore(score: number): string {
-  if (score >= FORCED_WIN / 2) return 'White wins';
-  if (score <= -FORCED_WIN / 2) return 'Black wins';
+  if (score >= FORCED_WIN) return 'White wins';
+  if (score <= -FORCED_WIN) return 'Black wins';
   const flats = score / FLAT;
   return `${flats > 0 ? '+' : ''}${flats.toFixed(1)}`;
 }

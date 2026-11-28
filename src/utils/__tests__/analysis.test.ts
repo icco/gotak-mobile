@@ -31,6 +31,7 @@ describe('scores', () => {
     expect(formatScore(-200)).toBe('-0.5');
     expect(formatScore(100000)).toBe('White wins');
     expect(formatScore(-100000)).toBe('Black wins');
+    expect(formatScore(60000)).toBe('+150.0');
   });
 
   it('clamps for the graph', () => {

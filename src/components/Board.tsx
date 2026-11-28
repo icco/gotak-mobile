@@ -98,7 +98,8 @@ const Square: React.FC<{
     ? `${square}, ${stones.length} stone${stones.length > 1 ? 's' : ''}, ${top.player === 1 ? 'white' : 'black'} ${top.type === 'S' ? 'wall' : top.type === 'C' ? 'capstone' : 'flat'} on top`
     : `${square}, empty`;
   const road = roadIndex >= 0 ? `${label}, part of the winning road` : label;
-  const spoken = threat.length ? `${road}, road threat for ${threat.map((p) => (p === 1 ? 'white' : 'black')).join(' and ')}` : road;
+  const threatened = threat.length ? `${road}, road threat for ${threat.map((p) => (p === 1 ? 'white' : 'black')).join(' and ')}` : road;
+  const spoken = marks.heat ? `${threatened}, placement heat ${Math.round(heat * 100)}%` : threatened;
 
   return (
     <Pressable

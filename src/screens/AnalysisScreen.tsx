@@ -126,6 +126,11 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const move = analysis?.moves[selected];
   const tps = move?.tps;
+  // Lets an in-flight comparison drop its result once the position has changed.
+  const tpsRef = useRef(tps);
+  useEffect(() => {
+    tpsRef.current = tps;
+  }, [tps]);
 
   const atFinal = !!analysis && selected === analysis.moves.length;
   const board: UIBoard | null = useMemo(() => {
@@ -189,16 +194,18 @@ export const AnalysisScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const compare = async () => {
-    if (!move?.tps) return;
+    if (!move?.tps || comparing) return;
+    const at = move.tps;
     const typed = tryInput.split(/[\s,]+/).filter(Boolean);
     const moves = [...new Set([...typed, move.played, move.best].filter(Boolean))].slice(0, 16);
     setComparing(true);
     setNotice(null);
     try {
-      setCompared(await gotakAPI.compareMoves(move.tps, moves));
+      const result = await gotakAPI.compareMoves(at, moves);
+      if (tpsRef.current === at) setCompared(result);
     } catch (e) {
       logException(toError(e), { method: 'compareMoves' });
-      setNotice(gotakAPI.formatError(e, 'Could not compare those moves.'));
+      if (tpsRef.current === at) setNotice(gotakAPI.formatError(e, 'Could not compare those moves.'));
     } finally {
       setComparing(false);
     }
