@@ -8,6 +8,7 @@ import { RootStackParamList } from '../types/navigation';
 import { GameState, PieceType, normalizeBoard, remainingPieces, UIBoard } from '../types/game';
 import { gotakAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useSpectate } from '../hooks/useSpectate';
 import { buildPlacementPtn } from '../utils/ptn';
 import { Spread, legalTargets, previewBoard, remaining, spreadPtn, startSpread, tapSpread, undoSpread, currentSquare } from '../utils/spread';
 import { flatCount, lastMoveSquares, moveList, turnNumber, winningRoad } from '../utils/board';
@@ -53,6 +54,19 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   const requestingAi = useRef(false);
   const slug = route.params?.gameId;
 
+  const live = useSpectate(slug);
+  // Once a watcher has a socket snapshot, late HTTP responses must not roll it back.
+  const socketLive = useRef(false);
+  useEffect(() => {
+    // Players get state from their own moves and the poll; only watchers follow the socket.
+    const g = live.game;
+    if (g && user && g.white_player_id !== user.id && g.black_player_id !== user.id) {
+      socketLive.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirrors socket state into the screen's game
+      setGame(g);
+    }
+  }, [live.game, user]);
+
   const board: UIBoard | null = useMemo(() => (game ? normalizeBoard(game.Board) : null), [game]);
 
   const me = useMemo(() => {
@@ -75,7 +89,8 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
     try {
-      setGame(await gotakAPI.getGame(slug));
+      const fetched = await gotakAPI.getGame(slug);
+      if (!socketLive.current) setGame(fetched);
       setLoadError(null);
     } catch (error) {
       logException(toError(error), { method: 'loadGame' });
@@ -100,10 +115,12 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     const waiting = game.status === 'waiting' || (me != null && game.current_player !== me);
     if (!waiting) return;
     const id = setInterval(() => {
-      if (!appActive.current) return;
+      if (!appActive.current || socketLive.current) return;
       gotakAPI
         .getGame(game.Slug)
-        .then(setGame)
+        .then((g) => {
+          if (!socketLive.current) setGame(g);
+        })
         .catch((error) => logException(toError(error), { method: 'pollGame' }));
     }, 2000);
     return () => clearInterval(id);
@@ -349,7 +366,11 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={type.title}>
             {board.size}×{board.size} {game.mode === 'ai' ? 'vs computer' : 'vs friend'}
           </Text>
-          <Text style={type.small}>Turn {turn}{game.mode === 'human' ? ` · ${game.Slug}` : ''}</Text>
+          <Text style={type.small}>
+            Turn {turn}
+            {game.mode === 'human' ? ` · ${game.Slug}` : ''}
+            {live.spectators ? ` · ${live.spectators} watching` : ''}
+          </Text>
         </View>
         <IconButton icon="video-3d" label="3D board" active={tilt} onPress={toggleTilt} />
         {game.mode === 'human' ? <IconButton icon="share-variant" label="Share game" onPress={() => void share()} /> : null}

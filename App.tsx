@@ -1,5 +1,5 @@
 import React from 'react';
-import { DarkTheme, NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, LinkingOptions, NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { color } from './src/theme';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -14,6 +14,12 @@ import { AnalysisScreen } from './src/screens/AnalysisScreen';
 import { ReplayScreen } from './src/screens/ReplayScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
+
+// Game links open the board; GameScreen shows it read-only to anyone who is not a player.
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: ['gotak://', 'https://gotak.app'],
+  config: { initialRouteName: 'Home', screens: { Home: '', Game: 'game/:gameId' } },
+};
 
 function RootNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -46,7 +52,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NavigationContainer theme={{ ...DarkTheme, colors: { ...DarkTheme.colors, background: color.ground } }}>
+        <NavigationContainer linking={linking} theme={{ ...DarkTheme, colors: { ...DarkTheme.colors, background: color.ground } }}>
           <StatusBar style="light" />
           <RootNavigator />
         </NavigationContainer>
