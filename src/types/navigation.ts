@@ -5,5 +5,6 @@ export type RootStackParamList = {
     gameId?: string;
     mode?: 'human' | 'ai';
   };
+  Analysis: { gameId: string };
   Replay: { gameId: string };
 };

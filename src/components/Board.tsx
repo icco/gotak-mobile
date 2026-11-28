@@ -3,7 +3,7 @@ import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View 
 import { UIBoard, UIStone } from '../types/game';
 import { coordsToSquare, squareToCoords } from '../utils/ptn';
 import { roadLinks } from '../utils/board';
-import { color, stoneFill } from '../theme';
+import { color, stoneEdge, stoneFill } from '../theme';
 import { Stone } from './Stone';
 
 export interface BoardMarks {
@@ -15,6 +15,10 @@ export interface BoardMarks {
   road?: string[];
   /** Square showing the floating hand, with the count still carried. */
   hand?: { square: string; count: number };
+  /** Empty squares where a flat would finish a road, keyed to the players it would win for. */
+  threats?: Record<string, number[]>;
+  /** Placement frequency per square, 0 to 1. */
+  heat?: Record<string, number>;
 }
 
 interface Props {
@@ -66,6 +70,8 @@ const Square: React.FC<{
   const last = marks.last.includes(square);
   const inspect = marks.inspect === square;
   const hand = marks.hand?.square === square ? marks.hand.count : 0;
+  const threat = marks.threats?.[square] ?? [];
+  const heat = marks.heat?.[square] ?? 0;
   const bar = Math.max(4, tile * 0.08);
   const roadIndex = marks.road?.indexOf(square) ?? -1;
   const [sweep] = useState(() => new Animated.Value(1));
@@ -91,7 +97,9 @@ const Square: React.FC<{
   const label = top
     ? `${square}, ${stones.length} stone${stones.length > 1 ? 's' : ''}, ${top.player === 1 ? 'white' : 'black'} ${top.type === 'S' ? 'wall' : top.type === 'C' ? 'capstone' : 'flat'} on top`
     : `${square}, empty`;
-  const spoken = roadIndex >= 0 ? `${label}, part of the winning road` : label;
+  const road = roadIndex >= 0 ? `${label}, part of the winning road` : label;
+  const threatened = threat.length ? `${road}, road threat for ${threat.map((p) => (p === 1 ? 'white' : 'black')).join(' and ')}` : road;
+  const spoken = marks.heat ? `${threatened}, placement heat ${Math.round(heat * 100)}%` : threatened;
 
   return (
     <Pressable
@@ -107,6 +115,7 @@ const Square: React.FC<{
         pressed && styles.pressed,
       ]}
     >
+      {heat ? <View style={[StyleSheet.absoluteFill, { backgroundColor: color.text, opacity: heat * 0.45 }]} /> : null}
       {last ? <View style={[StyleSheet.absoluteFill, styles.last]} /> : null}
       {isOrigin ? <View style={[StyleSheet.absoluteFill, styles.origin]} /> : null}
       {target ? <View style={[StyleSheet.absoluteFill, styles.target]} /> : null}
@@ -149,6 +158,12 @@ const Square: React.FC<{
         <Settle key={`${stones.length}${top.player}${top.type}`}>
           <Stone player={top.player} type={top.type} size={tile * 0.6} />
         </Settle>
+      ) : threat.length ? (
+        <View style={styles.threats}>
+          {threat.map((p) => (
+            <View key={p} style={[styles.threat, { width: tile * 0.26, height: tile * 0.26, backgroundColor: stoneFill(p), borderColor: stoneEdge(p) }]} />
+          ))}
+        </View>
       ) : target ? (
         <View style={[styles.dot, { width: tile * 0.22, height: tile * 0.22 }]} />
       ) : null}
@@ -265,6 +280,8 @@ const styles = StyleSheet.create({
   origin: { backgroundColor: color.accentSoft },
   target: { borderWidth: 3, borderColor: color.accent, borderRadius: 4 },
   inspect: { borderWidth: 2, borderColor: color.text, borderRadius: 4 },
+  threats: { flexDirection: 'row', gap: 2 },
+  threat: { borderRadius: 999, borderWidth: 2 },
   dot: { borderRadius: 999, backgroundColor: color.accent, opacity: 0.9 },
   coord: { position: 'absolute', fontSize: 11, fontWeight: '700', color: 'rgba(15, 21, 19, 0.8)' },
   rank: { top: 2, left: 4 },
