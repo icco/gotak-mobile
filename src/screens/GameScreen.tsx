@@ -265,8 +265,10 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     status = { text: 'You are watching this game.' };
   } else if (!status && canAct && firstTurn) {
     status = { text: "First turn: place one of your opponent's flats." };
+  } else if (!status && me && !canAct && !finished && game.mode === 'human' && game.status === 'active') {
+    status = { text: 'Waiting for your opponent to move.' };
   } else if (!status && canAct && turn <= 3 && spread) {
-    status = { text: 'Tap a highlighted square to drop one stone. Tap the stack again to carry fewer.' };
+    status = { text: 'Tap a highlighted square to drop a stone. Tap the stack to put one back.' };
   } else if (!status && canAct && turn <= 3) {
     status = { text: 'Tap an empty square to place a stone, or tap your stack to move it. Connect two opposite edges to win.' };
   }
@@ -322,7 +324,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={type.title}>
             {board.size}×{board.size} {game.mode === 'ai' ? 'vs computer' : 'vs friend'}
           </Text>
-          <Text style={type.small}>Turn {turn} · {game.Slug}</Text>
+          <Text style={type.small}>Turn {turn}{game.mode === 'human' ? ` · ${game.Slug}` : ''}</Text>
         </View>
         <IconButton icon="video-3d" label="3D board" active={tilt} onPress={toggleTilt} />
         {game.mode === 'human' ? <IconButton icon="share-variant" label="Share game" onPress={() => void share()} /> : null}
@@ -354,6 +356,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
             caps={mine.capstone}
             onBoard={flatCount(board, me)}
             toMove={!finished && game.current_player === me}
+            mine
           />
         ) : null}
       </View>

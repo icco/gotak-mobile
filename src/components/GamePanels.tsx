@@ -21,6 +21,7 @@ export const IconButton: React.FC<{
     onPress={onPress}
     disabled={disabled}
     hitSlop={4}
+    android_ripple={{ color: color.line, borderless: true, radius: 24 }}
     style={({ pressed }) => [styles.iconButton, active && styles.iconButtonActive, (pressed || disabled) && styles.dim]}
   >
     <MaterialCommunityIcons name={icon} size={24} color={active ? color.onAccent : color.text} />
@@ -51,7 +52,8 @@ export const PlayerBar: React.FC<{
   onBoard: number;
   toMove: boolean;
   thinking?: boolean;
-}> = ({ player, name, flats, caps, onBoard, toMove, thinking }) => (
+  mine?: boolean;
+}> = ({ player, name, flats, caps, onBoard, toMove, thinking, mine }) => (
   <View
     style={[styles.player, toMove && styles.playerToMove]}
     accessible
@@ -64,8 +66,12 @@ export const PlayerBar: React.FC<{
       </Text>
       {toMove ? (
         <View style={styles.toMove}>
-          {thinking ? <ActivityIndicator size="small" color={color.accent} /> : <View style={styles.toMoveDot} />}
-          <Text style={[type.small, { color: color.accent }]}>{thinking ? 'Thinking' : 'To move'}</Text>
+          {thinking ? (
+            <ActivityIndicator size="small" color={color.textDim} />
+          ) : (
+            <View style={[styles.toMoveDot, { backgroundColor: mine ? color.accent : color.textDim }]} />
+          )}
+          <Text style={[type.small, { color: mine ? color.accent : color.textDim }]}>{thinking ? 'Thinking' : 'To move'}</Text>
         </View>
       ) : null}
     </View>
@@ -241,7 +247,7 @@ const styles = StyleSheet.create({
   playerToMove: { backgroundColor: color.surface },
   playerName: { flex: 1 },
   toMove: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  toMoveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: color.accent },
+  toMoveDot: { width: 8, height: 8, borderRadius: 4 },
   stat: { alignItems: 'center', minWidth: 44 },
   statValue: { fontSize: 18, fontWeight: '600', color: color.textDim, fontVariant: ['tabular-nums'] },
   tray: { flexDirection: 'row', gap: space.sm },

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { UIBoard, UIStone } from '../types/game';
 import { coordsToSquare } from '../utils/ptn';
 import { roadLinks } from '../utils/board';
@@ -51,6 +51,26 @@ const Square: React.FC<{
   const inspect = marks.inspect === square;
   const hand = marks.hand?.square === square ? marks.hand.count : 0;
   const bar = Math.max(4, tile * 0.08);
+  const roadIndex = marks.road?.indexOf(square) ?? -1;
+  const [sweep] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    if (roadIndex < 0) return;
+    sweep.setValue(0);
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (reduce) {
+        sweep.setValue(1);
+        return;
+      }
+      Animated.timing(sweep, {
+        toValue: 1,
+        duration: 280,
+        delay: roadIndex * 70,
+        easing: Easing.out(Easing.exp),
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [roadIndex, sweep]);
 
   const label = top
     ? `${square}, ${stones.length} stone${stones.length > 1 ? 's' : ''}, ${top.player === 1 ? 'white' : 'black'} ${top.type === 'S' ? 'wall' : top.type === 'C' ? 'capstone' : 'flat'} on top`
@@ -73,19 +93,19 @@ const Square: React.FC<{
       {last ? <View style={[StyleSheet.absoluteFill, styles.last]} /> : null}
       {isOrigin ? <View style={[StyleSheet.absoluteFill, styles.origin]} /> : null}
       {target ? <View style={[StyleSheet.absoluteFill, styles.target]} /> : null}
-      {marks.road?.includes(square) ? <View style={[StyleSheet.absoluteFill, styles.origin]} /> : null}
+      {roadIndex >= 0 ? <Animated.View style={[StyleSheet.absoluteFill, styles.origin, { opacity: sweep }]} /> : null}
       {inspect ? <View style={[StyleSheet.absoluteFill, styles.inspect]} /> : null}
 
       {links.map((l) => {
         const t = Math.max(4, tile * (l.win ? 0.14 : 0.1));
         const h = l.dir === 'l' || l.dir === 'r';
         return (
-          <View
+          <Animated.View
             key={l.dir}
             style={{
               position: 'absolute',
               backgroundColor: l.win ? color.accent : stoneFill(l.player),
-              opacity: l.win ? 1 : 0.8,
+              opacity: l.win ? sweep : 0.8,
               ...(h
                 ? { top: (tile - t) / 2, height: t, left: l.dir === 'r' ? tile / 2 : -1, right: l.dir === 'l' ? tile / 2 : -1 }
                 : { left: (tile - t) / 2, width: t, top: l.dir === 'u' ? -1 : tile / 2, bottom: l.dir === 'd' ? -1 : tile / 2 }),
@@ -205,7 +225,7 @@ const styles = StyleSheet.create({
   target: { borderWidth: 3, borderColor: color.accent, borderRadius: 4 },
   inspect: { borderWidth: 2, borderColor: color.text, borderRadius: 4 },
   dot: { borderRadius: 999, backgroundColor: color.accent, opacity: 0.9 },
-  coord: { position: 'absolute', fontSize: 10, fontWeight: '700', color: 'rgba(15, 21, 19, 0.55)' },
+  coord: { position: 'absolute', fontSize: 11, fontWeight: '700', color: 'rgba(15, 21, 19, 0.8)' },
   rank: { top: 2, left: 4 },
   file: { bottom: 2, right: 4 },
   under: { position: 'absolute', flexDirection: 'column-reverse' },
