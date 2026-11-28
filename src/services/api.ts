@@ -128,6 +128,14 @@ class GotakAPI {
     return this.normalizeGame(response.data);
   }
 
+  openSpectate(slug: string): WebSocket {
+    const url = `${API_CONFIG.BASE_URL.replace(/^http/, 'ws')}/game/${slug}/spectate`;
+    // Players send their token so the server leaves them out of the spectator count.
+    // React Native takes headers as a third argument; the DOM typings in scope only know two.
+    const RNWebSocket = WebSocket as unknown as new (u: string, p: null, o: { headers: Record<string, string> }) => WebSocket;
+    return new RNWebSocket(url, null, { headers: this.token ? { Authorization: `Bearer ${this.token}` } : {} });
+  }
+
   getGameLink(slug: string): string {
     return `${API_CONFIG.BASE_URL}/game/${slug}`;
   }
@@ -140,7 +148,7 @@ class GotakAPI {
     };
   }
 
-  private normalizeGame(raw: any): GameState {
+  normalizeGame(raw: any): GameState {
     if (!raw) {
       throw new Error('empty game response');
     }

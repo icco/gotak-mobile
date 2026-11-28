@@ -8,6 +8,7 @@ import { RootStackParamList } from '../types/navigation';
 import { GameState, PieceType, normalizeBoard, remainingPieces, UIBoard } from '../types/game';
 import { gotakAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useSpectate } from '../hooks/useSpectate';
 import { buildPlacementPtn } from '../utils/ptn';
 import { Spread, legalTargets, previewBoard, remaining, spreadPtn, startSpread, tapSpread, undoSpread, currentSquare } from '../utils/spread';
 import { flatCount, lastMoveSquares, moveList, turnNumber, winningRoad } from '../utils/board';
@@ -52,6 +53,14 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   const appActive = useRef(true);
   const requestingAi = useRef(false);
   const slug = route.params?.gameId;
+
+  const live = useSpectate(slug);
+  useEffect(() => {
+    // Players get state from their own moves and the poll; only watchers follow the socket.
+    const g = live.game;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirrors socket state into the screen's game
+    if (g && user && g.white_player_id !== user.id && g.black_player_id !== user.id) setGame(g);
+  }, [live.game, user]);
 
   const board: UIBoard | null = useMemo(() => (game ? normalizeBoard(game.Board) : null), [game]);
 
@@ -345,7 +354,11 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={type.title}>
             {board.size}×{board.size} {game.mode === 'ai' ? 'vs computer' : 'vs friend'}
           </Text>
-          <Text style={type.small}>Turn {turn}{game.mode === 'human' ? ` · ${game.Slug}` : ''}</Text>
+          <Text style={type.small}>
+            Turn {turn}
+            {game.mode === 'human' ? ` · ${game.Slug}` : ''}
+            {live.spectators ? ` · ${live.spectators} watching` : ''}
+          </Text>
         </View>
         <IconButton icon="video-3d" label="3D board" active={tilt} onPress={toggleTilt} />
         {game.mode === 'human' ? <IconButton icon="share-variant" label="Share game" onPress={() => void share()} /> : null}
