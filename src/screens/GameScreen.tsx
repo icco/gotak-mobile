@@ -321,7 +321,7 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           </Text>
           <Text style={type.small}>Turn {turn} · {game.Slug}</Text>
         </View>
-        <IconButton icon="rotate-3d-variant" label="Tilt board" active={tilt} onPress={toggleTilt} />
+        <IconButton icon="video-3d" label="3D board" active={tilt} onPress={toggleTilt} />
         {game.mode === 'human' ? <IconButton icon="share-variant" label="Share game" onPress={() => void share()} /> : null}
       </View>
 

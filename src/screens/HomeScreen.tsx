@@ -43,8 +43,11 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const join = () =>
     run(async () => {
       const slug = joinSlug.trim();
-      await gotakAPI.joinGame(slug);
-      navigation.navigate('Game', { gameId: slug, mode: 'human' });
+      const game = await gotakAPI.getGame(slug);
+      if (game.white_player_id !== user?.id && game.black_player_id !== user?.id) {
+        await gotakAPI.joinGame(slug);
+      }
+      navigation.navigate('Game', { gameId: slug, mode: game.mode });
     }, 'Could not join that game. Check the code and try again.');
 
   return (
