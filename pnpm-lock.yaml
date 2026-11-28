@@ -12,6 +12,9 @@ importers:
 
   .:
     dependencies:
+      '@expo/vector-icons':
+        specifier: ^15.1.1
+        version: 15.1.1(expo-font@55.0.8(expo@55.0.31)(react-native@0.83.10(@babel/core@8.1.2)(@types/react@19.2.18)(react@19.2.0))(react@19.2.0))(react-native@0.83.10(@babel/core@8.1.2)(@types/react@19.2.18)(react@19.2.0))(react@19.2.0)
       '@react-navigation/native':
         specifier: ^7.5.2
         version: 7.5.2(react-native@0.83.10(@babel/core@8.1.2)(@types/react@19.2.18)(react@19.2.0))(react@19.2.0)

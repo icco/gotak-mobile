@@ -124,7 +124,7 @@ class GotakAPI {
       level,
       style,
       time_limit: timeLimitNs,
-    });
+    }, { timeout: timeLimitNs / 1_000_000 + 20_000 });
     return this.normalizeGame(response.data);
   }
 
