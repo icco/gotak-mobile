@@ -1,3 +1,11 @@
+# [1.2.0](https://github.com/icco/gotak-mobile/compare/v1.1.0...v1.2.0) (2026-11-28)
+
+
+### Features
+
+* **game:** add how-to-play rules and remember the 3d board ([#97](https://github.com/icco/gotak-mobile/issues/97)) ([4e2fb7d](https://github.com/icco/gotak-mobile/commit/4e2fb7d4aace17b34ea6ab7cd412455d10579e02))
+* **game:** show roads and add newcomer hints ([#96](https://github.com/icco/gotak-mobile/issues/96)) ([acf9ca5](https://github.com/icco/gotak-mobile/commit/acf9ca55128b326534d5bb3b07654d2943c6579d))
+
 # [1.1.0](https://github.com/icco/gotak-mobile/compare/v1.0.4...v1.1.0) (2026-11-28)
 
 
