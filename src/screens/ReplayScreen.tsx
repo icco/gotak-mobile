@@ -136,7 +136,7 @@ export const ReplayScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={type.label}>{`  ${at} / ${last}`}</Text>
         </Text>
         {step?.comment ? (
-          <ScrollView style={styles.comment}>
+          <ScrollView key={at} style={styles.comment}>
             <Banner text={step.comment} />
           </ScrollView>
         ) : null}
