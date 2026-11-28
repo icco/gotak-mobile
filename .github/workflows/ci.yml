@@ -20,8 +20,6 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
-env:
-  NODE_VERSION: "26"
 jobs:
   lint:
     name: Lint
@@ -38,8 +36,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
+          node-version-file: .nvmrc
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Lint
@@ -63,8 +61,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
+          node-version-file: .nvmrc
       - name: Setup Java
         uses: actions/setup-java@v6
         with:
@@ -105,8 +103,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
+          node-version-file: .nvmrc
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Generate native iOS code
